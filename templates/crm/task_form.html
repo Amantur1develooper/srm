@@ -1,0 +1,13 @@
+{% extends "crm/base.html" %}
+{% block title %}{{ title }} — Webordo SRM{% endblock %}
+{% block content %}
+<div class="page-head"><div><a href="{% url 'task_list' %}" class="muted">← Задачи</a><h1 style="margin-top:4px">{{ title }}</h1></div></div>
+<form method="post" class="card pad">
+  {% csrf_token %}
+  <div class="form-grid">{% include "crm/_form.html" %}</div>
+  <div class="row" style="margin-top:var(--sp-4)">
+    <button class="btn">Сохранить</button>
+    <a href="{% url 'task_list' %}" class="btn ghost">Отмена</a>
+  </div>
+</form>
+{% endblock %}

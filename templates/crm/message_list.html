@@ -1,0 +1,45 @@
+{% extends "crm/base.html" %}
+{% block title %}Сообщения — Webordo SRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Сообщения</h1><small>Статус не выставляется автоматически — подтверждает менеджер</small></div>
+  <div class="actions">
+    <a href="{% url 'template_list' %}" class="btn secondary">📝 Шаблоны</a>
+    <a href="{% url 'broadcast_start' %}" class="btn">📣 Массовая рассылка</a>
+  </div>
+</div>
+
+<div class="chips" style="margin-bottom:var(--sp-4)">
+  <a class="chip {% if not current.status %}active{% endif %}" href="?">Все</a>
+  {% for val,label in statuses %}
+  <a class="chip {% if current.status == val %}active{% endif %}" href="?status={{ val }}">{{ label }}</a>
+  {% endfor %}
+</div>
+
+<div class="table-wrap">
+  <table class="tbl">
+    <thead><tr><th>Клиент</th><th>Шаблон</th><th>Текст</th><th>Менеджер</th><th>Дата</th><th>Статус</th><th></th></tr></thead>
+    <tbody>
+      {% for m in page_obj %}
+      <tr>
+        <td><a href="{{ m.client.get_absolute_url }}">{{ m.client.full_name }}</a></td>
+        <td>{{ m.template.name|default:"—" }}</td>
+        <td style="max-width:280px"><small>{{ m.rendered_text|truncatechars:120 }}</small></td>
+        <td class="nowrap">{{ m.manager.display_name|default:"—" }}</td>
+        <td class="nowrap">{{ m.created_at|date:"d.m.Y H:i" }}</td>
+        <td><span class="badge {% if m.status == 'sent_manual' %}green{% elif m.status == 'skipped' %}red{% else %}indigo{% endif %}">{{ m.get_status_display }}</span></td>
+        <td class="nowrap">
+          <form method="post" action="{% url 'message_set_status' m.id %}" style="display:inline">{% csrf_token %}
+            <input type="hidden" name="status" value="sent_manual"><button class="btn success sm" title="Отмечено вручную">✓ Отправлено</button>
+          </form>
+          <form method="post" action="{% url 'message_set_status' m.id %}" style="display:inline">{% csrf_token %}
+            <input type="hidden" name="status" value="skipped"><button class="btn ghost sm">Пропустить</button>
+          </form>
+        </td>
+      </tr>
+      {% empty %}<tr><td colspan="7"><div class="empty"><div class="big">💬</div>Сообщений нет</div></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

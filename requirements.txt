@@ -1,0 +1,18 @@
+# Webordo SRM — зависимости (Python 3.13)
+# Установка:  pip install -r requirements.txt
+
+# --- Framework ---
+Django==5.1.15
+asgiref==3.12.1
+sqlparse==0.6.0
+
+# --- PostgreSQL (драйвер psycopg 3 + бинарная сборка) ---
+psycopg==3.3.5
+psycopg-binary==3.3.5
+
+# --- Конфигурация через .env ---
+python-dotenv==1.2.3
+
+# --- Импорт/экспорт Excel (.xlsx) ---
+openpyxl==3.1.5
+et-xmlfile==2.0.0

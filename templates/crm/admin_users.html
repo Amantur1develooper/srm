@@ -1,0 +1,27 @@
+{% extends "crm/base.html" %}
+{% block title %}Пользователи — Webordo SRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Пользователи и менеджеры</h1></div>
+  <div class="actions"><a href="{% url 'admin_user_create' %}" class="btn">＋ Пользователь</a></div>
+</div>
+<div class="table-wrap">
+  <table class="tbl">
+    <thead><tr><th>Имя</th><th>Логин</th><th>Телефон</th><th>Роль</th><th>Клиентов</th><th>Задач</th><th>Активен</th><th></th></tr></thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td><b>{{ u.display_name }}</b></td>
+        <td class="mono">{{ u.username }}</td>
+        <td class="mono">{{ u.phone|default:"—" }}</td>
+        <td><span class="badge indigo">{{ u.get_role_display }}</span></td>
+        <td class="num">{{ u.clients_count }}</td>
+        <td class="num">{{ u.tasks_count }}</td>
+        <td>{% if u.is_active %}<span class="badge green">да</span>{% else %}<span class="badge red">нет</span>{% endif %}</td>
+        <td><a href="{% url 'admin_user_edit' u.id %}" class="btn secondary sm">Изменить</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

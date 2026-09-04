@@ -1,0 +1,68 @@
+{% extends "crm/base.html" %}
+{% block title %}Результат импорта — Webordo SRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Импорт завершён</h1><small>{{ filename }} · режим дублей: {{ strategy_label }}</small></div>
+  <div class="actions">
+    <a href="{% url 'import_finish' %}" class="btn">К списку клиентов</a>
+    <a href="{% url 'import_map' %}?sheet={{ sheet_idx }}" class="btn secondary">Изменить сопоставление и повторить</a>
+  </div>
+</div>
+
+<div class="stats" style="margin-bottom:var(--sp-6)">
+  <div class="stat"><div class="k">Строк обработано</div><div class="v">{{ result.total }}</div></div>
+  <div class="stat success"><div class="k">Создано</div><div class="v">{{ result.created }}</div></div>
+  <div class="stat accent"><div class="k">Обновлено</div><div class="v">{{ result.updated }}</div></div>
+  <div class="stat warn"><div class="k">Пропущено</div><div class="v">{{ result.skipped }}</div></div>
+</div>
+
+{% if not name_mapped and result.noname_rows %}
+<div class="card pad" style="border-left:4px solid var(--warning);margin-bottom:var(--sp-4)">
+  <b>Колонка с ФИО не была сопоставлена.</b>
+  {{ result.noname_rows|length }} клиент(ов) созданы как «Без имени».
+  Вернитесь к сопоставлению, укажите колонку с именем и запустите импорт со стратегией
+  <b>«Обновить данные»</b> — записи найдутся по телефону и получат имена.
+</div>
+{% endif %}
+
+{% if result.skipped_rows %}
+<div class="card">
+  <div class="card-h">Пропущенные строки ({{ result.skipped_rows|length }}) — почему не зашли</div>
+  <div class="table-wrap" style="border:0">
+    <table class="tbl">
+      <thead><tr><th>Строка в Excel</th><th>Имя</th><th>Телефон</th><th>Причина</th></tr></thead>
+      <tbody>
+        {% for r in result.skipped_rows %}
+        <tr>
+          <td class="num">{{ r.row }}</td>
+          <td>{{ r.name }}</td>
+          <td class="mono">{{ r.phone|default:"—" }}</td>
+          <td>{{ r.reason }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="card-b">
+    <small class="muted">
+      Дубли определяются по номеру телефона (в международном формате). Чтобы всё-таки
+      загрузить эти строки: выберите стратегию <b>«Обновить данные»</b> (данные допишутся
+      в существующего клиента) или <b>«Создать как нового»</b> (появится второй клиент
+      с тем же телефоном), затем повторите импорт.
+    </small>
+  </div>
+</div>
+{% endif %}
+
+{% if result.empty_rows %}
+<div class="card pad" style="margin-top:var(--sp-4)">
+  <b>Пустые строки, отброшены до обработки:</b>
+  <span class="mono">{{ result.empty_rows|join:", " }}</span>
+  <div><small class="muted">Строки без имени и без телефона одновременно.</small></div>
+</div>
+{% endif %}
+
+{% if not result.skipped_rows and not result.empty_rows and name_mapped %}
+<div class="empty"><div class="big">✅</div>Все строки импортированы без пропусков.</div>
+{% endif %}
+{% endblock %}

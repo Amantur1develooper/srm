@@ -1,0 +1,83 @@
+{% extends "crm/base.html" %}
+{% block title %}Рассылка {{ batch.id }} — Webordo SRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Рассылка · шаблон «{{ batch.template.name }}»</h1>
+    <small>Подготовлено {{ total }} сообщений · отправлено вручную: <b data-done>{{ batch.done }}</b>/{{ total }}</small></div>
+</div>
+
+<div class="card pad" style="max-width:720px">
+  <div id="runner" class="stack">
+    <div class="row" style="justify-content:space-between">
+      <b><span data-idx>1</span>/{{ total }}</b>
+      <span class="muted" data-progress></span>
+    </div>
+    <h2 data-name></h2>
+    <div class="mono muted" data-phone></div>
+    <textarea class="field-input field-textarea" rows="5" data-text></textarea>
+    <div class="row">
+      <a class="btn wa lg" target="_blank" data-open>🟢 Открыть WhatsApp</a>
+      <button class="btn success" data-sent>✓ Отправлено</button>
+      <button class="btn ghost" data-skip>Пропустить</button>
+    </div>
+    <p class="muted">Откройте WhatsApp, отправьте сообщение вручную, затем нажмите «Отправлено».</p>
+  </div>
+  <div id="done" hidden class="empty"><div class="big">✅</div>Рассылка завершена. <a href="{% url 'message_list' %}">К сообщениям</a></div>
+</div>
+
+<div class="table-wrap" style="margin-top:var(--sp-6);max-width:720px">
+  <table class="tbl">
+    <thead><tr><th>#</th><th>Клиент</th><th>Статус</th></tr></thead>
+    <tbody>
+      {% for m in items %}
+      <tr data-item-row="{{ m.id }}"><td class="num">{{ forloop.counter }}</td><td>{{ m.client.full_name }}</td>
+        <td><span class="badge" data-item-status>{{ m.get_status_display }}</span></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{{ items_json|json_script:"batch-data" }}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+  var data = JSON.parse(document.getElementById('batch-data').textContent);
+  var i = 0;
+  var setUrl = "{% url 'message_set_status' 0 %}".replace('/0/','/ID/');
+  function csrf(){var m=document.cookie.match(/csrftoken=([^;]+)/);return m?m[1]:'';}
+  var el = {
+    idx: document.querySelector('[data-idx]'), name: document.querySelector('[data-name]'),
+    phone: document.querySelector('[data-phone]'), text: document.querySelector('[data-text]'),
+    open: document.querySelector('[data-open]'), progress: document.querySelector('[data-progress]'),
+    doneCount: document.querySelector('[data-done]')
+  };
+  function render(){
+    while(i < data.length && data[i].status !== 'prepared' && data[i].status !== 'opened') i++;
+    if(i >= data.length){ document.getElementById('runner').hidden = true; document.getElementById('done').hidden = false; return; }
+    var d = data[i];
+    el.idx.textContent = i+1;
+    el.name.textContent = d.name;
+    el.phone.textContent = d.phone ? '+'+d.phone : 'нет телефона';
+    el.text.value = d.text;
+    el.open.href = d.phone ? 'https://wa.me/'+d.phone+'?text='+encodeURIComponent(d.text) : '#';
+    el.progress.textContent = 'Осталось: ' + (data.length - data.filter(function(x){return x.status==='sent_manual'||x.status==='skipped';}).length);
+  }
+  function mark(status){
+    var d = data[i];
+    fetch(setUrl.replace('ID', d.id), {method:'POST', headers:{'X-Requested-With':'XMLHttpRequest','X-CSRFToken':csrf(),'Content-Type':'application/x-www-form-urlencoded'}, body:'status='+status});
+    d.status = status;
+    var row = document.querySelector('[data-item-row="'+d.id+'"] [data-item-status]');
+    if(row){ row.textContent = status==='sent_manual'?'Отправлено вручную':'Пропущено'; row.className = 'badge '+(status==='sent_manual'?'green':'red'); }
+    el.doneCount.textContent = data.filter(function(x){return x.status==='sent_manual'||x.status==='skipped';}).length;
+    i++;
+    render();
+  }
+  el.open.addEventListener('click', function(){ if(data[i]) data[i].status='opened'; });
+  document.querySelector('[data-sent]').addEventListener('click', function(e){ e.preventDefault(); mark('sent_manual'); });
+  document.querySelector('[data-skip]').addEventListener('click', function(e){ e.preventDefault(); mark('skipped'); });
+  render();
+})();
+</script>
+{% endblock %}

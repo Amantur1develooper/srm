@@ -1,0 +1,71 @@
+{% extends "crm/base.html" %}
+{% block title %}Задачи — Webordo SRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Задачи</h1></div>
+  <div class="actions"><a href="{% url 'task_create' %}" class="btn">＋</a></div>
+</div>
+
+<div class="chips" style="margin-bottom:var(--sp-3)">
+  <a class="chip {% if tab == 'overdue' %}active{% endif %}" href="?tab=overdue{% if filter_query %}&{{ filter_query }}{% endif %}">Просрочено · {{ counts.overdue }}</a>
+  <a class="chip {% if tab == 'today' %}active{% endif %}" href="?tab=today{% if filter_query %}&{{ filter_query }}{% endif %}">Сегодня · {{ counts.today }}</a>
+  <a class="chip {% if tab == 'upcoming' %}active{% endif %}" href="?tab=upcoming{% if filter_query %}&{{ filter_query }}{% endif %}">Ближайшие · {{ counts.upcoming }}</a>
+  <a class="chip {% if tab == 'no_date' %}active{% endif %}" href="?tab=no_date{% if filter_query %}&{{ filter_query }}{% endif %}">Без срока · {{ counts.no_date }}</a>
+  <a class="chip {% if tab == 'done' %}active{% endif %}" href="?tab=done{% if filter_query %}&{{ filter_query }}{% endif %}">Выполнено · {{ counts.done }}</a>
+</div>
+
+<form method="get" style="margin-bottom:var(--sp-4)">
+  <input type="hidden" name="tab" value="{{ tab }}">
+  <details class="filters"{% if has_filters %} open{% endif %}>
+    <summary>Фильтры</summary>
+    <div class="filters-grid">
+      <select class="field-input field-select" name="stage" onchange="this.form.submit()">
+        <option value="">Все стадии</option>
+        {% for s in stages %}<option value="{{ s.slug }}" {% if current.stage == s.slug %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+      </select>
+      <select class="field-input field-select" name="manager" onchange="this.form.submit()">
+        <option value="">Все менеджеры</option>
+        {% for m in managers %}<option value="{{ m.id }}" {% if current.manager == m.id|stringformat:'s' %}selected{% endif %}>{{ m.display_name }}</option>{% endfor %}
+      </select>
+      <noscript><button class="btn sm">Применить</button></noscript>
+      {% if has_filters %}<a href="?tab={{ tab }}" class="btn ghost sm">Сбросить</a>{% endif %}
+    </div>
+  </details>
+</form>
+
+<div class="ios-list">
+  {% for t in tasks %}
+  <div class="ios-row tap tone-{{ t.due_tone }}{% if t.status == 'done' %} is-done{% endif %}" data-row-link="{{ t.get_absolute_url }}">
+    <span class="lead-check">
+      {% if t.is_open %}
+      <form method="post" action="{% url 'task_set_status' t.id %}" data-ajax-form>{% csrf_token %}
+        <input type="hidden" name="status" value="done">
+        <button class="tcheck" title="Отметить выполненной" aria-label="Выполнена"></button>
+      </form>
+      {% else %}<span class="tcheck done" aria-hidden="true">✓</span>{% endif %}
+    </span>
+    <span class="body">
+      <span class="ttl {% if t.status == 'done' %}strike{% endif %}">{{ t.title }}</span>
+      <span class="sub">
+        <span class="task-dot {{ t.due_tone }}"></span>
+        <span class="{{ t.due_tone }}">{% if t.due_date %}{{ t.due_human }}{% if t.due_time %}, {{ t.due_time|time:"H:i" }}{% endif %}{% else %}без срока{% endif %}</span>
+        · {{ t.client.full_name }}
+      </span>
+      {% if t.comment %}<span class="sub">{{ t.comment|truncatechars:70 }}</span>{% endif %}
+    </span>
+    <span class="trail">
+      <select class="stage-select" data-stage-select data-url="{% url 'client_change_stage' t.client.id %}"
+              style="background:{{ t.client.stage.color }}" onclick="event.stopPropagation()" title="Сменить стадию">
+        {% for s in stages %}
+        <option value="{{ s.id }}" data-color="{{ s.color }}" {% if s.id == t.client.stage_id %}selected{% endif %}>{{ s.name }}</option>
+        {% endfor %}
+      </select>
+      <a class="wa-mini" href="{% url 'task_make_message' t.id %}" onclick="event.stopPropagation()" title="Создать сообщение" aria-label="Сообщение">💬</a>
+    </span>
+    <span class="chev"></span>
+  </div>
+  {% empty %}
+  <div class="empty"><div class="big">✅</div>Задач в этой вкладке нет</div>
+  {% endfor %}
+</div>
+{% endblock %}

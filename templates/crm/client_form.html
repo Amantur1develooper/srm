@@ -1,0 +1,19 @@
+{% extends "crm/base.html" %}
+{% block title %}{{ title }} — Webordo SRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    {% if client %}<a href="{{ client.get_absolute_url }}" class="muted">← {{ client.full_name }}</a>{% else %}<a href="{% url 'client_list' %}" class="muted">← Клиенты</a>{% endif %}
+    <h1 style="margin-top:4px">{{ title }}</h1>
+  </div>
+</div>
+<form method="post" class="card pad">
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="badge red" style="display:block;padding:10px">{{ form.non_field_errors }}</div>{% endif %}
+  <div class="form-grid">{% include "crm/_form.html" %}</div>
+  <div class="row" style="margin-top:var(--sp-4)">
+    <button class="btn">Сохранить</button>
+    <a href="{% if client %}{{ client.get_absolute_url }}{% else %}{% url 'client_list' %}{% endif %}" class="btn ghost">Отмена</a>
+  </div>
+</form>
+{% endblock %}

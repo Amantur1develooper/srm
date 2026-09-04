@@ -1,0 +1,144 @@
+{% extends "crm/base.html" %}
+{% block title %}{{ client.full_name }} — Webordo SRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <a href="{% url 'client_list' %}" class="muted">← Клиенты</a>
+    <h1 style="margin-top:4px">{{ client.full_name }}
+      <span class="stage-pill" style="background:{{ client.stage.color }};font-size:13px;vertical-align:middle">{{ client.stage.name }}</span>
+    </h1>
+    <small class="mono">{{ client.phone }}{% if client.phone_extra %} · доп. {{ client.phone_extra }}{% endif %}</small>
+  </div>
+  <div class="actions">
+    {% if client.wa_number %}
+    <a class="btn wa lg" target="_blank" href="{% url 'client_whatsapp' client.id %}">🟢 WhatsApp</a>
+    {% endif %}
+    <a class="btn secondary" href="{% url 'client_edit' client.id %}">✏️ Редактировать</a>
+  </div>
+</div>
+
+<div class="split">
+  <div class="stack">
+    <!-- смена стадии -->
+    <div class="card pad">
+      <form method="post" action="{% url 'client_change_stage' client.id %}" class="row">
+        {% csrf_token %}
+        <b>Стадия:</b>
+        <select class="field-input field-select" style="max-width:220px" name="stage">
+          {% for s in stages %}<option value="{{ s.id }}" {% if s.id == client.stage_id %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+        </select>
+        <button class="btn sm">Сменить</button>
+        <span class="sp" style="flex:1"></span>
+        {% if client.next_step %}<span class="muted">Следующий шаг: <b>{{ client.next_step }}</b>{% if client.next_step_at %} — {{ client.next_step_at|date:"d.m.Y H:i" }}{% endif %}</span>{% endif %}
+      </form>
+    </div>
+
+    <!-- инфо -->
+    <div class="card">
+      <div class="card-h">Основная информация</div>
+      <div class="card-b">
+        <dl class="dl">
+          <dt>Телефон</dt><dd class="mono">{{ client.phone|default:"—" }}</dd>
+          <dt>WhatsApp</dt><dd class="mono">{{ client.whatsapp_phone|default:client.phone|default:"—" }}</dd>
+          <dt>Дата обращения</dt><dd>{{ client.first_contact_date|date:"d.m.Y"|default:"—" }}</dd>
+          <dt>Менеджер</dt><dd>{{ client.manager.display_name|default:"не назначен" }}</dd>
+          <dt>Источник</dt><dd>{{ client.get_source_display }}</dd>
+          <dt>Что ищет / что есть</dt><dd>{{ client.looking_for|linebreaksbr|default:"—" }}</dd>
+          <dt>Бюджет</dt><dd>{{ client.budget|default:"—" }}</dd>
+          <dt>Комментарий</dt><dd>{{ client.comment|linebreaksbr|default:"—" }}</dd>
+        </dl>
+      </div>
+    </div>
+
+    <!-- задачи -->
+    <div class="card">
+      <div class="card-h">Задачи <span class="badge">{{ tasks|length }}</span></div>
+      <div class="card-b stack">
+        {% for t in tasks %}
+        <div class="row" style="justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:8px">
+          <div>
+            <a href="{{ t.get_absolute_url }}"><b>{{ t.title }}</b></a>
+            <span class="badge {% if t.status == 'done' %}green{% elif t.is_overdue %}red{% else %}amber{% endif %}">{{ t.get_status_display }}</span><br>
+            <small>{% if t.due_date %}{{ t.due_date|date:"d.m.Y" }}{% if t.due_time %} {{ t.due_time|time:"H:i" }}{% endif %}{% else %}без срока{% endif %}{% if t.comment %} · {{ t.comment|truncatechars:60 }}{% endif %}</small>
+          </div>
+          {% if t.is_open %}
+          <form method="post" action="{% url 'task_set_status' t.id %}">{% csrf_token %}
+            <input type="hidden" name="status" value="done">
+            <button class="btn success sm">✓ Выполнена</button>
+          </form>
+          {% endif %}
+        </div>
+        {% empty %}<div class="muted">Задач нет</div>{% endfor %}
+
+        <form method="post" action="{% url 'client_add_task' client.id %}" class="stack" style="border-top:1px solid var(--border);padding-top:var(--sp-3)">
+          {% csrf_token %}
+          <b>Новая задача</b>
+          <input class="field-input" name="title" placeholder="Что сделать (напр. Позвонить клиенту)" required>
+          <div class="row">
+            <input class="field-input" style="max-width:170px" type="date" name="due_date">
+            <input class="field-input" style="max-width:130px" type="time" name="due_time">
+            <button class="btn sm">Создать задачу</button>
+          </div>
+          <input class="field-input" name="comment" placeholder="Комментарий (необязательно)">
+        </form>
+      </div>
+    </div>
+
+    <!-- сообщения -->
+    <div class="card">
+      <div class="card-h">Сообщения</div>
+      <div class="card-b stack">
+        <form method="get" action="{% url 'client_whatsapp' client.id %}" target="_blank" class="row">
+          <select class="field-input field-select" style="max-width:240px" name="template">
+            <option value="">— без шаблона —</option>
+            {% for tpl in templates %}<option value="{{ tpl.id }}">{{ tpl.name }}</option>{% endfor %}
+          </select>
+          <button class="btn wa sm" {% if not client.wa_number %}disabled{% endif %}>🟢 Открыть WhatsApp с текстом</button>
+        </form>
+        {% for m in client_messages %}
+        <div style="border-bottom:1px solid var(--border);padding-bottom:8px">
+          <div class="row" style="justify-content:space-between">
+            <small><b>{{ m.template.name|default:"Свободный текст" }}</b> · {{ m.created_at|date:"d.m H:i" }}</small>
+            <span class="badge {% if m.status == 'sent_manual' %}green{% elif m.status == 'skipped' %}red{% else %}indigo{% endif %}">{{ m.get_status_display }}</span>
+          </div>
+          <div class="muted" style="font-size:13px">{{ m.rendered_text|truncatechars:160 }}</div>
+        </div>
+        {% empty %}<div class="muted">Сообщений ещё не было</div>{% endfor %}
+      </div>
+    </div>
+
+    <!-- комментарии -->
+    <div class="card">
+      <div class="card-h">Комментарии</div>
+      <div class="card-b stack">
+        <form method="post" action="{% url 'client_add_comment' client.id %}" class="stack">
+          {% csrf_token %}
+          {{ comment_form.text }}
+          <button class="btn sm" style="align-self:flex-start">Добавить</button>
+        </form>
+        {% for c in comments %}
+        <div style="border-top:1px solid var(--border);padding-top:8px">
+          <small class="muted">{{ c.author.display_name|default:"—" }} · {{ c.created_at|date:"d.m.Y H:i" }}</small>
+          <div>{{ c.text|linebreaksbr }}</div>
+        </div>
+        {% empty %}<div class="muted">Комментариев нет</div>{% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- история -->
+  <div class="card">
+    <div class="card-h">История</div>
+    <div class="card-b">
+      <ul class="timeline">
+        {% for h in history %}
+        <li>
+          <div class="t-time">{{ h.created_at|date:"d.m.Y H:i" }} · {{ h.user.display_name|default:"система" }}</div>
+          <div class="t-text">{{ h.get_kind_display }}: {{ h.text }}</div>
+        </li>
+        {% empty %}<li class="muted">История пуста</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

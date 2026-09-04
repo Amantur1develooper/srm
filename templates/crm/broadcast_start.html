@@ -1,0 +1,37 @@
+{% extends "crm/base.html" %}
+{% block title %}Массовая рассылка — Webordo SRM{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Массовая рассылка</h1><small>Ручная отправка: CRM готовит текст и по очереди открывает WhatsApp</small></div></div>
+
+<form method="post" class="card pad stack" style="max-width:720px">
+  {% csrf_token %}
+  <div class="form-row">
+    <label>Шаблон сообщения</label>
+    <select class="field-input field-select" name="template" required>
+      {% for t in templates %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+    </select>
+  </div>
+
+  <div class="form-row">
+    <label>Получатели</label>
+    {% if selected %}
+      <div class="stack" style="max-height:320px;overflow:auto;border:1px solid var(--border);border-radius:var(--r-sm);padding:var(--sp-3)">
+        {% for c in selected %}
+        <label class="check-inline"><input class="field-check" type="checkbox" name="client_ids" value="{{ c.id }}" checked>
+          {{ c.full_name }} <span class="muted mono">{{ c.phone }}</span></label>
+        {% endfor %}
+      </div>
+      <div class="help">Выбрано из списка клиентов: {{ selected|length }}</div>
+    {% else %}
+      <div class="stack" style="max-height:360px;overflow:auto;border:1px solid var(--border);border-radius:var(--r-sm);padding:var(--sp-3)">
+        {% for c in all_clients %}
+        <label class="check-inline"><input class="field-check" type="checkbox" name="client_ids" value="{{ c.id }}">
+          {{ c.full_name }} <span class="muted mono">{{ c.phone }}</span></label>
+        {% empty %}<span class="muted">Нет клиентов</span>{% endfor %}
+      </div>
+    {% endif %}
+  </div>
+
+  <button class="btn">Подготовить сообщения →</button>
+</form>
+{% endblock %}

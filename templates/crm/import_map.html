@@ -1,0 +1,82 @@
+{% extends "crm/base.html" %}
+{% load crm_extras %}
+{% block title %}Сопоставление колонок — Webordo SRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Импорт: {{ data.filename }}</h1>
+    <small>Найдено строк: <b>{{ sheet.total }}</b> на листе «{{ sheet.name }}»</small></div>
+</div>
+
+{% if data.sheets|length > 1 %}
+<div class="chips" style="margin-bottom:var(--sp-4)">
+  {% for s in data.sheets %}
+  <a class="chip {% if forloop.counter0 == sheet_idx %}active{% endif %}" href="?sheet={{ forloop.counter0 }}">{{ s.name }} ({{ s.total }})</a>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="split">
+  <div class="card">
+    <div class="card-h">Предпросмотр</div>
+    <div class="table-wrap" style="border:0">
+      <table class="tbl">
+        <thead><tr>{% for h in sheet.headers %}<th>{{ h|default:"—" }}</th>{% endfor %}</tr></thead>
+        <tbody>
+          {% for row in sheet.rows %}<tr>{% for cell in row %}<td>{{ cell|truncatechars:40 }}</td>{% endfor %}</tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <form method="post" action="{% url 'import_run' %}" class="card pad stack">
+    {% csrf_token %}
+    <input type="hidden" name="sheet" value="{{ sheet_idx }}">
+    <h3>Сопоставление колонок</h3>
+    {% for key, label in target_fields %}
+    <div class="form-row">
+      <label>{{ label }}</label>
+      <select class="field-input field-select" name="map_{{ key }}">
+        <option value="-">— не импортировать —</option>
+        {% for idx, hname in columns %}
+        <option value="{{ idx }}" {% if sheet.mapping|get:key == idx %}selected{% endif %}>{{ hname|default:"колонка" }} ({{ idx }})</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endfor %}
+
+    <hr>
+    <div class="form-row">
+      <label>Если клиент с таким телефоном уже есть</label>
+      <select class="field-input field-select" name="duplicate_strategy">
+        <option value="skip">Пропустить</option>
+        <option value="update">Обновить данные</option>
+        <option value="create">Создать как нового</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Менеджер по умолчанию (если в файле не указан)</label>
+      <select class="field-input field-select" name="default_manager">
+        <option value="">— не назначать —</option>
+        {% for m in managers %}<option value="{{ m.id }}">{{ m.display_name }}</option>{% endfor %}
+      </select>
+    </div>
+
+    <button class="btn lg" id="importBtn">Импортировать {{ sheet.total }} строк</button>
+    <a href="{% url 'import_upload' %}" class="btn ghost">Загрузить другой файл</a>
+  </form>
+</div>
+
+<script>
+(function(){
+  var form = document.getElementById('importBtn').closest('form');
+  var nameSel = form.querySelector('[name="map_full_name"]');
+  form.addEventListener('submit', function(e){
+    if(nameSel && (nameSel.value === '-' || nameSel.value === '')){
+      if(!confirm('Колонка с ФИО не выбрана — клиенты будут созданы как «Без имени». Продолжить?')){
+        e.preventDefault();
+      }
+    }
+  });
+})();
+</script>
+{% endblock %}

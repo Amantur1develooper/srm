@@ -1,0 +1,21 @@
+{% extends "crm/base.html" %}
+{% block title %}Уведомления — Webordo SRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Уведомления</h1></div>
+  <div class="actions">
+    <form method="post" action="{% url 'notifications_read_all' %}">{% csrf_token %}<button class="btn secondary">Отметить все прочитанными</button></form>
+  </div>
+</div>
+<div class="stack">
+  {% for n in items %}
+  <div class="card pad row" style="justify-content:space-between;{% if not n.is_read %}border-left:3px solid var(--primary){% endif %}">
+    <div>
+      {% if n.url %}<a href="{{ n.url }}"><b>{{ n.text }}</b></a>{% else %}<b>{{ n.text }}</b>{% endif %}
+      <br><small class="muted">{{ n.get_kind_display }} · {{ n.created_at|date:"d.m.Y H:i" }}</small>
+    </div>
+    {% if not n.is_read %}<span class="badge indigo">новое</span>{% endif %}
+  </div>
+  {% empty %}<div class="empty"><div class="big">🔔</div>Уведомлений нет</div>{% endfor %}
+</div>
+{% endblock %}

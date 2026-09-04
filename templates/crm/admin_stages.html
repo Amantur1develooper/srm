@@ -1,0 +1,32 @@
+{% extends "crm/base.html" %}
+{% block title %}Стадии — Webordo SRM{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Стадии воронки</h1><small>Порядок и признаки настраиваются здесь; правка существующих — в Django-админке</small></div></div>
+
+<div class="split">
+  <div class="table-wrap">
+    <table class="tbl">
+      <thead><tr><th>#</th><th>Название</th><th>Код</th><th>Воронка</th><th>Тип</th><th>Активна</th></tr></thead>
+      <tbody>
+        {% for s in stages %}
+        <tr>
+          <td class="num">{{ s.order }}</td>
+          <td><span class="stage-pill" style="background:{{ s.color }}">{{ s.name }}</span></td>
+          <td class="mono">{{ s.slug }}</td>
+          <td>{% if s.in_funnel %}✓{% else %}—{% endif %}</td>
+          <td>{% if s.is_won %}<span class="badge green">сделка</span>{% elif s.is_lost %}<span class="badge red">проигрыш</span>{% else %}—{% endif %}</td>
+          <td>{% if s.is_active %}<span class="badge green">да</span>{% else %}<span class="badge">нет</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <form method="post" class="card pad stack">
+    {% csrf_token %}
+    <h3>Новая стадия</h3>
+    {% include "crm/_form.html" %}
+    <button class="btn">Добавить</button>
+  </form>
+</div>
+{% endblock %}

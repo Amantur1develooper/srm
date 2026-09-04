@@ -1,0 +1,146 @@
+{% extends "crm/base.html" %}
+{% block title %}Клиенты — Webordo SRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Клиенты</h1><small>{{ total }} всего</small></div>
+  <div class="actions">
+    <button type="button" class="btn tint" id="selectToggle">Выбрать</button>
+    <details class="menu">
+      <summary class="btn secondary">⋯</summary>
+      <div class="menu-pop">
+        <a href="{% url 'client_export' %}?{{ querystring }}">⬇︎ Экспорт в Excel</a>
+        {% if user.can_manage_settings or user.is_head_role %}
+        <a href="{% url 'import_upload' %}">📥 Импорт из Excel</a>
+        {% endif %}
+      </div>
+    </details>
+    <a href="{% url 'client_create' %}" class="btn">＋</a>
+  </div>
+</div>
+
+<form method="get" class="stack" style="margin-bottom:var(--sp-4)">
+  <input class="field-input" type="search" name="q" placeholder="Поиск: имя, телефон, объект…"
+         value="{{ current.q|default:'' }}" onsearch="this.form.submit()">
+  <input type="hidden" name="sort" value="{{ sort }}">
+  <details class="filters"{% if current.stage or current.manager or current.has_task or current.overdue_task or current.has_phone or current.date_from or current.date_to %} open{% endif %}>
+    <summary>Фильтры</summary>
+    <div class="filters-grid">
+      <select class="field-input field-select" name="stage">
+        <option value="">Все стадии</option>
+        {% for s in stages %}<option value="{{ s.slug }}" {% if current.stage == s.slug %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+      </select>
+      <select class="field-input field-select" name="manager">
+        <option value="">Все менеджеры</option>
+        {% for m in managers %}<option value="{{ m.id }}" {% if current.manager == m.id|stringformat:'s' %}selected{% endif %}>{{ m.display_name }}</option>{% endfor %}
+      </select>
+      <label class="check-inline"><input class="field-check" type="checkbox" name="has_task" value="1" {% if current.has_task == '1' %}checked{% endif %}> Есть задача</label>
+      <label class="check-inline"><input class="field-check" type="checkbox" name="overdue_task" value="1" {% if current.overdue_task == '1' %}checked{% endif %}> Просроченная задача</label>
+      <label class="check-inline"><input class="field-check" type="checkbox" name="has_phone" value="1" {% if current.has_phone == '1' %}checked{% endif %}> С телефоном</label>
+      <label class="check-inline" style="gap:8px">Обращение с
+        <input class="field-input" style="max-width:150px" type="date" name="date_from" value="{{ current.date_from|default:'' }}">
+        по <input class="field-input" style="max-width:150px" type="date" name="date_to" value="{{ current.date_to|default:'' }}">
+      </label>
+      <div class="row">
+        <button class="btn sm" type="submit">Применить</button>
+        <a href="{% url 'client_list' %}" class="btn ghost sm">Сбросить</a>
+      </div>
+    </div>
+  </details>
+</form>
+
+<form method="post" action="{% url 'client_bulk' %}" id="bulkForm">
+  {% csrf_token %}
+  <div class="bulkbar" data-bulkbar hidden>
+    <b><span data-bulk-count>0</span> выбрано</b>
+    <span class="sp" style="flex:1"></span>
+    <select class="field-input field-select" style="max-width:150px" name="stage">
+      <option value="">Стадия…</option>
+      {% for s in stages %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+    </select>
+    <button class="btn sm secondary" name="action" value="set_stage">Сменить</button>
+    {% if user.can_see_all_clients %}
+    <select class="field-input field-select" style="max-width:150px" name="manager">
+      <option value="">Менеджер…</option>
+      {% for m in managers %}<option value="{{ m.id }}">{{ m.display_name }}</option>{% endfor %}
+    </select>
+    <button class="btn sm secondary" name="action" value="set_manager">Назначить</button>
+    {% endif %}
+    <button type="button" class="btn sm" data-bulk-task data-url="{% url 'client_bulk_task' %}">＋ Задача всем</button>
+    <button class="btn sm secondary" name="action" value="export">Экспорт</button>
+    <button class="btn sm secondary" name="action" value="broadcast">📣 Рассылка</button>
+  </div>
+
+  <div class="ios-list">
+    {% for c in page_obj %}
+    <div class="ios-row tap" data-row data-select-row data-href="{{ c.get_absolute_url }}">
+      <span class="sel"><input type="checkbox" name="client_ids" value="{{ c.id }}"></span>
+      <span class="lead" style="background:{{ c.stage.color }}">{{ c.full_name|slice:':1'|upper }}</span>
+      <span class="body">
+        <span class="ttl">{{ c.full_name }}</span>
+        <span class="sub">{{ c.phone|default:"—" }}{% if c.looking_for %} · {{ c.looking_for|truncatechars:44 }}{% endif %}</span>
+        {% with t=c.open_tasks.0 %}
+        {% if t %}
+          <span class="sub"><span class="task-dot {{ t.due_tone }}"></span>
+            <span class="{{ t.due_tone }}">{{ t.due_human }}{% if t.due_time %}, {{ t.due_time|time:"H:i" }}{% endif %}</span>
+            — {{ t.title|truncatechars:36 }}{% if c.open_tasks|length > 1 %} <span class="task-more">+{{ c.open_tasks|length|add:"-1" }}</span>{% endif %}
+          </span>
+        {% else %}
+          <button type="button" class="task-add" data-add-task data-url="{% url 'client_add_task' c.id %}"
+                  data-client="{{ c.full_name }}" onclick="event.stopPropagation()">＋ задача</button>
+        {% endif %}
+        {% endwith %}
+      </span>
+      <span class="trail">
+        <select class="stage-select" data-stage-select data-url="{% url 'client_change_stage' c.id %}"
+                style="background:{{ c.stage.color }}" onclick="event.stopPropagation()" title="Сменить стадию">
+          {% for s in stages %}
+          <option value="{{ s.id }}" data-color="{{ s.color }}" {% if s.id == c.stage_id %}selected{% endif %}>{{ s.name }}</option>
+          {% endfor %}
+        </select>
+        {% if c.wa_number %}<a class="wa-mini" target="_blank" href="{% url 'client_whatsapp' c.id %}" onclick="event.stopPropagation()" title="WhatsApp" aria-label="WhatsApp">✆</a>{% endif %}
+      </span>
+      <span class="chev"></span>
+    </div>
+    {% empty %}
+    <div class="empty"><div class="big">🗂️</div>Ничего не найдено</div>
+    {% endfor %}
+  </div>
+</form>
+
+{% if page_obj.has_other_pages %}
+<div class="row" style="justify-content:center;margin-top:var(--sp-4)">
+  {% if page_obj.has_previous %}<a class="btn secondary sm" href="?{{ querystring }}&page={{ page_obj.previous_page_number }}">Назад</a>{% endif %}
+  <span class="muted">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}<a class="btn secondary sm" href="?{{ querystring }}&page={{ page_obj.next_page_number }}">Вперёд</a>{% endif %}
+</div>
+{% endif %}
+
+<div class="modal-backdrop" id="taskModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="taskModalTitle">
+    <div class="modal-h">
+      <b id="taskModalTitle">Новая задача</b>
+      <button type="button" class="btn ghost sm" data-modal-close aria-label="Закрыть">Готово</button>
+    </div>
+    <form class="modal-b stack" id="taskModalForm">
+      {% csrf_token %}
+      <div class="muted" data-modal-client></div>
+      <div class="form-row">
+        <label for="tm_title">Задача</label>
+        <input class="field-input" id="tm_title" name="title" required placeholder="Напр. Позвонить клиенту" autocomplete="off">
+      </div>
+      <div class="row">
+        <div class="form-row" style="flex:1"><label for="tm_date">Дата</label>
+          <input class="field-input" id="tm_date" type="date" name="due_date"></div>
+        <div class="form-row" style="flex:1"><label for="tm_time">Время</label>
+          <input class="field-input" id="tm_time" type="time" name="due_time"></div>
+      </div>
+      <div class="form-row">
+        <label for="tm_comment">Комментарий</label>
+        <textarea class="field-input field-textarea" id="tm_comment" name="comment" rows="3" placeholder="Детали, о чём договорились…"></textarea>
+      </div>
+      <div class="errorlist" data-modal-error hidden></div>
+      <button class="btn block lg" type="submit">Создать задачу</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

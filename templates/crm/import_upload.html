@@ -1,0 +1,21 @@
+{% extends "crm/base.html" %}
+{% block title %}Импорт из Excel — Webordo SRM{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Импорт клиентов из Excel</h1><small>Формат .xlsx. Дубли определяются по номеру телефона.</small></div></div>
+
+<form method="post" enctype="multipart/form-data" class="card pad stack" style="max-width:560px">
+  {% csrf_token %}
+  {% include "crm/_form.html" %}
+  <button class="btn">Загрузить и посмотреть</button>
+</form>
+
+<div class="card pad" style="max-width:560px;margin-top:var(--sp-4)">
+  <h3>Как это работает</h3>
+  <ol class="muted" style="padding-left:18px;line-height:1.8">
+    <li>Загружаете файл — система показывает предпросмотр и число строк.</li>
+    <li>Сопоставляете колонки Excel с полями CRM (заполняется автоматически).</li>
+    <li>Выбираете, что делать с дублями: пропустить / обновить / создать нового.</li>
+    <li>Подтверждаете импорт.</li>
+  </ol>
+</div>
+{% endblock %}

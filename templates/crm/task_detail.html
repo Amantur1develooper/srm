@@ -1,0 +1,43 @@
+{% extends "crm/base.html" %}
+{% block title %}{{ task.title }} — Webordo SRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <a href="{% url 'task_list' %}" class="muted">← Задачи</a>
+    <h1 style="margin-top:4px">{{ task.title }}
+      <span class="badge {% if task.status == 'done' %}green{% elif task.is_overdue %}red{% else %}amber{% endif %}">{{ task.get_status_display }}</span>
+    </h1>
+    <small>Клиент: <a href="{{ task.client.get_absolute_url }}">{{ task.client.full_name }}</a></small>
+  </div>
+  <div class="actions">
+    {% if task.is_open %}
+    <form method="post" action="{% url 'task_set_status' task.id %}" style="display:inline">{% csrf_token %}
+      <input type="hidden" name="status" value="in_progress"><button class="btn secondary">В работу</button></form>
+    <form method="post" action="{% url 'task_set_status' task.id %}" style="display:inline">{% csrf_token %}
+      <input type="hidden" name="status" value="done"><button class="btn success">✓ Выполнена</button></form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="split">
+  <div class="card pad">
+    <h3>Создать сообщение из задачи</h3>
+    <p class="muted">CRM подставит данные клиента и откроет WhatsApp с готовым текстом. Отправку менеджер подтверждает вручную.</p>
+    <form method="get" action="{% url 'task_make_message' task.id %}" class="stack">
+      <select class="field-input field-select" name="template">
+        {% for tpl in templates %}<option value="{{ tpl.id }}">{{ tpl.name }}</option>{% endfor %}
+      </select>
+      <button class="btn wa" style="align-self:flex-start">💬 Создать сообщение</button>
+    </form>
+  </div>
+
+  <div class="card pad">
+    <h3>Параметры задачи</h3>
+    <form method="post">
+      {% csrf_token %}
+      <div class="stack">{% include "crm/_form.html" %}</div>
+      <button class="btn" style="margin-top:var(--sp-3)">Сохранить</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends "crm/base.html" %}
+{% block title %}Шаблоны сообщений — Webordo SRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Шаблоны сообщений</h1><small>Переменные: {имя}, {телефон}, {менеджер}, {объект}, {бюджет}</small></div>
+  <div class="actions"><a href="{% url 'template_create' %}" class="btn">＋ Шаблон</a></div>
+</div>
+
+<div class="grid cols-2">
+  {% for t in templates %}
+  <div class="card pad">
+    <div class="row" style="justify-content:space-between">
+      <b>{{ t.name }}</b>
+      {% if not t.is_active %}<span class="badge">неактивен</span>{% endif %}
+    </div>
+    <p class="muted" style="white-space:pre-wrap;margin:var(--sp-2) 0">{{ t.body }}</p>
+    <div class="row">
+      <a href="{% url 'template_edit' t.id %}" class="btn secondary sm">Редактировать</a>
+      <form method="post" action="{% url 'template_delete' t.id %}" onsubmit="return confirm('Удалить шаблон?')">{% csrf_token %}
+        <button class="btn ghost sm">Удалить</button>
+      </form>
+    </div>
+  </div>
+  {% empty %}<div class="empty"><div class="big">📝</div>Шаблонов пока нет</div>{% endfor %}
+</div>
+{% endblock %}

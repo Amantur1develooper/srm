@@ -1,0 +1,43 @@
+{% extends "crm/base.html" %}
+{% block title %}Канбан — Webordo SRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Канбан</h1><small>Перетащите карточку между стадиями</small></div>
+  <div class="actions">
+    <form method="get" class="row">
+      <input class="field-input" style="max-width:180px" type="search" name="q" placeholder="Имя клиента" value="{{ current.q|default:'' }}">
+      <select class="field-input field-select" style="max-width:170px" name="manager" onchange="this.form.submit()">
+        <option value="">Все менеджеры</option>
+        {% for m in managers %}<option value="{{ m.id }}" {% if current.manager == m.id|stringformat:'s' %}selected{% endif %}>{{ m.display_name }}</option>{% endfor %}
+      </select>
+      <button class="btn sm secondary">Фильтр</button>
+    </form>
+  </div>
+</div>
+
+<div class="kanban" data-kanban data-move-url="{% url 'kanban_move' %}">
+  {% for col in columns %}
+  <div class="kcol">
+    <div class="kcol-h">
+      <span class="stage-dot" style="background:{{ col.stage.color }}"></span>
+      {{ col.stage.name }}
+      <span class="count">{{ col.clients|length }}</span>
+    </div>
+    <div class="kcol-b" data-stage-id="{{ col.stage.id }}">
+      {% for c in col.clients %}
+      <div class="kcard" draggable="true" data-client-id="{{ c.id }}">
+        <div class="name"><a href="{{ c.get_absolute_url }}">{{ c.full_name }}</a></div>
+        <div class="meta">
+          {% if c.phone %}<span class="mono">📞 {{ c.phone }}</span>{% endif %}
+          {% if c.looking_for %}<span>{{ c.looking_for|truncatechars:48 }}</span>{% endif %}
+          {% if c.next_step %}<span>Шаг: <b>{{ c.next_step }}</b></span>{% endif %}
+          {% with t=c.next_task %}{% if t %}<span>Задача: <b>{{ t.due_date|date:"d.m"|default:"—" }}</b></span>{% endif %}{% endwith %}
+          {% if c.manager %}<span>Менеджер: <b>{{ c.manager.display_name }}</b></span>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

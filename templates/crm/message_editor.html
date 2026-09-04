@@ -1,0 +1,34 @@
+{% extends "crm/base.html" %}
+{% block title %}Сообщение — {{ client.full_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <a href="{% url 'task_detail' task.id %}" class="muted">← Задача «{{ task.title }}»</a>
+    <h1 style="margin-top:4px">Сообщение для {{ client.full_name }}</h1>
+    <small class="mono">{{ client.phone }}</small>
+  </div>
+</div>
+
+<form method="post" action="{% url 'task_make_message' task.id %}" class="card pad stack" style="max-width:640px">
+  {% csrf_token %}
+  <div class="form-row">
+    <label>Шаблон</label>
+    <select class="field-input field-select" name="template" data-template-source
+            onchange="location='?template='+this.value">
+      {% for tpl in templates %}
+      <option value="{{ tpl.id }}" {% if tpl.id == template.id %}selected{% endif %}>{{ tpl.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="form-row">
+    <label>Текст сообщения</label>
+    <textarea class="field-input field-textarea" name="text" rows="6" data-message-text>{{ initial_text }}</textarea>
+    <div class="help">Доступные переменные: {имя}, {телефон}, {менеджер}, {объект}, {бюджет}</div>
+  </div>
+  <div class="row">
+    <button class="btn wa">🟢 Открыть WhatsApp с этим текстом</button>
+    <a href="{% url 'task_detail' task.id %}" class="btn ghost">Отмена</a>
+  </div>
+  <p class="muted">После нажатия откроется WhatsApp клиента с уже вставленным текстом — отправку вы подтверждаете сами.</p>
+</form>
+{% endblock %}
