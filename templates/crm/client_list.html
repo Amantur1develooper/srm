@@ -4,7 +4,10 @@
 <div class="page-head">
   <div><h1>Список</h1><small>{{ total }} всего</small></div>
   <div class="actions">
-    <button type="button" class="btn tint" id="selectToggle">Выбрать</button>
+    <div class="segbtn">
+      <button type="button" class="btn tint" id="selectToggle">Выбрать</button>
+      <button type="button" class="btn tint" data-select-all-now>Выбрать все</button>
+    </div>
     <details class="menu">
       <summary class="btn secondary">⋯</summary>
       <div class="menu-pop">
@@ -74,38 +77,7 @@
 
   <div class="ios-list">
     {% for c in page_obj %}
-    <div class="ios-row tap" data-row data-select-row data-href="{{ c.get_absolute_url }}">
-      <span class="sel"><input type="checkbox" name="client_ids" value="{{ c.id }}"></span>
-      <span class="lead" style="background:{{ c.stage.color }}">{{ c.full_name|slice:':1'|upper }}</span>
-      <span class="body">
-        <span class="ttl">{{ c.full_name }}</span>
-        <span class="sub">
-          {% if c.phone %}<button type="button" class="phone-copy" data-copy="{{ c.phone }}" onclick="event.stopPropagation()" title="Скопировать номер">{{ c.phone }}</button>{% else %}—{% endif %}
-          {% if c.looking_for %} · {{ c.looking_for|truncatechars:40 }}{% endif %}
-        </span>
-        {% with t=c.open_tasks.0 %}
-        {% if t %}
-          <span class="sub"><span class="task-dot {{ t.due_tone }}"></span>
-            <span class="{{ t.due_tone }}">{{ t.due_human }}{% if t.due_time %}, {{ t.due_time|time:"H:i" }}{% endif %}</span>
-            — {{ t.title|truncatechars:36 }}{% if c.open_tasks|length > 1 %} <span class="task-more">+{{ c.open_tasks|length|add:"-1" }}</span>{% endif %}
-          </span>
-        {% else %}
-          <button type="button" class="task-add" data-add-task data-url="{% url 'client_add_task' c.id %}"
-                  data-client="{{ c.full_name }}" onclick="event.stopPropagation()">＋ задача</button>
-        {% endif %}
-        {% endwith %}
-      </span>
-      <span class="trail">
-        <select class="stage-select" data-stage-select data-url="{% url 'client_change_stage' c.id %}"
-                style="background:{{ c.stage.color }}" onclick="event.stopPropagation()" title="Сменить стадию">
-          {% for s in stages %}
-          <option value="{{ s.id }}" data-color="{{ s.color }}" {% if s.id == c.stage_id %}selected{% endif %}>{{ s.name }}</option>
-          {% endfor %}
-        </select>
-        {% if c.wa_number %}<a class="wa-mini" target="_blank" href="{% url 'client_whatsapp' c.id %}" onclick="event.stopPropagation()" title="WhatsApp" aria-label="WhatsApp">✆</a>{% endif %}
-      </span>
-      <span class="chev"></span>
-    </div>
+      {% include "crm/_client_row.html" %}
     {% empty %}
     <div class="empty"><div class="big">🗂️</div>Ничего не найдено</div>
     {% endfor %}

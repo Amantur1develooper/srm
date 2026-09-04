@@ -4,7 +4,10 @@
 <div class="page-head">
   <div><h1>Канбан</h1></div>
   <div class="actions">
-    <button type="button" class="btn tint" id="selectToggle">Выбрать</button>
+    <div class="segbtn">
+      <button type="button" class="btn tint" id="selectToggle">Выбрать</button>
+      <button type="button" class="btn tint" data-select-all-now>Выбрать все</button>
+    </div>
     <form method="get" class="row">
       <input class="field-input" style="max-width:160px" type="search" name="q" placeholder="Имя клиента" value="{{ current.q|default:'' }}">
       <select class="field-input field-select" style="max-width:160px" name="manager" onchange="this.form.submit()">
@@ -52,12 +55,18 @@
         {% for c in col.clients %}
         <div class="kcard" draggable="true" data-client-id="{{ c.id }}">
           <span class="sel"><input type="checkbox" name="client_ids" value="{{ c.id }}"></span>
-          <div class="name kf" contenteditable data-field="full_name" data-client-id="{{ c.id }}">{{ c.full_name }}</div>
-          <div class="meta">
-            <span class="kf mono" contenteditable data-field="phone" data-client-id="{{ c.id }}" data-placeholder="телефон">{{ c.phone }}</span>
-            <span class="kf" contenteditable data-field="looking_for" data-client-id="{{ c.id }}" data-placeholder="что ищет">{{ c.looking_for }}</span>
-            {% with t=c.next_task %}{% if t %}<span>Задача: <b>{{ t.due_date|date:"d.m"|default:"—" }}</b></span>{% endif %}{% endwith %}
-            {% if c.manager %}<span>{{ c.manager.display_name }}</span>{% endif %}
+          <div class="kphone-row">
+            <span class="kf kphone" contenteditable data-field="phone" data-client-id="{{ c.id }}" data-placeholder="без телефона">{{ c.phone }}</span>
+            {% if c.phone %}<button type="button" class="kcopy" data-copy="{{ c.phone }}" title="Скопировать номер" onclick="event.stopPropagation()">⧉</button>{% endif %}
+          </div>
+          <div class="kf" contenteditable data-field="looking_for" data-client-id="{{ c.id }}" data-placeholder="Ищет: —">{{ c.looking_for }}</div>
+          <div class="kf" contenteditable data-field="what_has" data-client-id="{{ c.id }}" data-placeholder="Есть: —">{{ c.what_has }}</div>
+          {% with t=c.next_task %}
+          <div class="knext">{% if t %}<span class="task-dot {{ t.due_tone }}"></span> {{ t.due_human }} — {{ t.title|truncatechars:28 }}{% else %}<span class="muted">нет задачи</span>{% endif %}</div>
+          {% endwith %}
+          <div class="kfoot">
+            <span class="kf kname" contenteditable data-field="full_name" data-client-id="{{ c.id }}">{{ c.full_name }}</span>
+            {% if c.manager %}· {{ c.manager.display_name }}{% endif %}
           </div>
           <a class="kcard-open" href="{{ c.get_absolute_url }}" title="Открыть карточку" aria-label="Открыть">›</a>
         </div>

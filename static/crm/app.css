@@ -266,9 +266,26 @@ table.tbl tr:last-child td{border-bottom:0}
 .kcard:hover{box-shadow:var(--shadow)}
 .kcard:active{transform:scale(.98);cursor:grabbing}
 .kcard.dragging{opacity:.35}
-.kcard .name{font-weight:600;font-size:13px;margin-bottom:4px;letter-spacing:-0.01em}
-.kcard .meta{font-size:11.5px;color:var(--muted);display:flex;flex-direction:column;gap:2px}
-.kcard .meta b{color:var(--text);font-weight:600}
+/* приоритет информации на карточке: телефон → ищет → есть → задача → имя */
+.kphone-row{display:flex;align-items:center;gap:4px;margin-bottom:3px;margin-right:16px}
+.kphone{
+  font-weight:700;font-size:13.5px;letter-spacing:-0.01em;color:var(--text);font-variant-numeric:tabular-nums;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;
+}
+.kphone:focus{white-space:normal;overflow:visible}
+.kcopy{
+  flex:0 0 auto;width:18px;height:18px;border:0;background:var(--fill);border-radius:5px;color:var(--muted);
+  font-size:11px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;
+}
+.kcopy:hover{background:var(--blue-tint);color:var(--blue)}
+.kcopy.copied{background:var(--success-soft);color:var(--green-d)}
+.kcard .kf{font-size:12px;color:var(--muted);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kcard .kf:focus{white-space:normal;overflow:visible;color:var(--text)}
+.knext{font-size:11.5px;color:var(--muted);margin:3px 0 2px}
+.knext .task-dot{margin-right:2px;vertical-align:middle}
+.kfoot{font-size:11px;color:var(--muted-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kfoot .kname{color:var(--muted-2)}
+.kfoot .kname:focus{color:var(--text)}
 .kcol-b.drop-hint{background:var(--blue-tint);border-radius:var(--r)}
 
 /* поля прямого редактирования на карточке — клик → курсор → ввод, как в Excel */
@@ -316,12 +333,12 @@ body.selecting .kcard .kcard-open{display:none}
   width:38px;height:38px;flex:0 0 38px;border-radius:50%;display:flex;align-items:center;justify-content:center;
   font-weight:600;font-size:15px;color:#fff;letter-spacing:-0.02em;
 }
-.ios-row .body{flex:1;min-width:0}
-.ios-row .ttl{font-weight:600;font-size:14px;letter-spacing:-0.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ios-row .sub{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.ios-row .body{flex:1;min-width:0;display:flex;flex-direction:column}
+.ios-row .ttl{display:block;font-weight:600;font-size:14px;letter-spacing:-0.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ios-row .sub{display:flex;align-items:center;gap:4px;font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
 .ios-row .phone-copy{
-  font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text);
-  background:none;border:0;padding:0;font-family:inherit;cursor:pointer;letter-spacing:0;
+  font:inherit;font-variant-numeric:tabular-nums;color:var(--text);
+  background:none;border:0;padding:0;cursor:pointer;letter-spacing:inherit;
 }
 .ios-row .phone-copy:hover{color:var(--blue)}
 .ios-row .phone-copy.copied{color:var(--green-d)}
@@ -370,6 +387,11 @@ body.selecting .ios-row .trail .stage-select,body.selecting .ios-row .trail .wa-
 .filters[open]>summary::before{transform:rotate(180deg)}
 .filters-grid{display:flex;flex-wrap:wrap;gap:var(--sp-3);align-items:center;background:var(--surface);border-radius:var(--r-lg);padding:var(--sp-4);margin-top:var(--sp-2);box-shadow:var(--shadow-sm)}
 .filters-grid select{max-width:190px}
+
+/* --- «Выбрать» + «Выбрать всё» как единый, неразделимый контрол --- */
+.segbtn{display:inline-flex;border-radius:var(--r-pill);overflow:hidden;box-shadow:0 0 0 1px rgba(0,0,0,.05)}
+.segbtn .btn{border-radius:0}
+.segbtn .btn+.btn{border-left:1px solid rgba(255,255,255,.35)}
 
 /* --- панель массовых действий --- */
 .bulkbar{
@@ -456,23 +478,43 @@ td[data-task-cell]{min-width:170px;max-width:240px}
 .task-dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
 .task-dot.red{background:var(--red)}.task-dot.amber{background:var(--orange)}.task-dot.green{background:var(--green)}
 
-/* ---------- таблица задач ---------- */
-.tbl-tasks tr[data-row-link]{cursor:pointer}
-.tbl-tasks td:first-child{border-left:3px solid transparent}
-.tbl-tasks .task-row.tone-red td:first-child{border-left-color:var(--red)}
-.tbl-tasks .task-row.tone-amber td:first-child{border-left-color:var(--orange)}
-.tbl-tasks .task-row.tone-green td:first-child{border-left-color:transparent}
-.tbl-tasks .task-row.is-done{opacity:.5}
-.tbl-tasks .task-row.is-done .task-item-ttl{text-decoration:line-through}
-.tbl-tasks .red{color:var(--red-d)}.tbl-tasks .amber{color:var(--orange-d)}.tbl-tasks .green{color:var(--muted)}
-.tcheck{
-  width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border-strong);
-  background:var(--surface);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
-  padding:0;color:#fff;font-size:12px;line-height:1;transition:background .12s,border-color .12s,transform .08s;
+/* ---------- задачи — компактный список в духе Apple Notes ---------- */
+.tlist{background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);overflow:hidden}
+.titem{
+  display:flex;align-items:center;gap:9px;padding:7px var(--sp-4);border-top:.5px solid var(--sep);
+  min-height:38px;cursor:pointer;
 }
-.tcheck:hover{border-color:var(--green)}
-.tcheck:active{transform:scale(.9)}
-.tcheck.done{background:var(--green);border-color:var(--green);cursor:default}
+.titem:first-child{border-top:0}
+.titem:hover{background:var(--fill-quat)}
+.titem.tone-red{box-shadow:inset 3px 0 0 var(--red)}
+.titem.tone-amber{box-shadow:inset 3px 0 0 var(--orange)}
+.titem.is-done{opacity:.48}
+.titem.is-done .ttext{text-decoration:line-through}
+.tcheck-form{flex:0 0 auto;display:flex}
+.tcheck2{
+  width:20px;height:20px;border-radius:50%;border:1.5px solid var(--border-strong);
+  background:var(--surface);cursor:pointer;padding:0;flex:0 0 auto;transition:background .12s,border-color .12s,transform .08s;
+}
+.tcheck2:hover{border-color:var(--green)}
+.tcheck2:active{transform:scale(.88)}
+.tcheck2.done{background:var(--green);border-color:var(--green)}
+.tcheck2.done::after{content:"✓";display:block;color:#fff;font-size:12px;line-height:17px;text-align:center}
+.ttext{
+  flex:1;min-width:0;font-size:14px;font-weight:450;letter-spacing:-0.01em;color:var(--text);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:5px;padding:1px 4px;margin:-1px -4px;cursor:text;
+}
+.ttext:hover{background:var(--fill-quat)}
+.ttext:focus{background:var(--surface);box-shadow:0 0 0 2px var(--blue);outline:none;white-space:normal;overflow:visible}
+.tdate{
+  flex:0 0 auto;width:104px;border:0;background:transparent;color:var(--muted);font-size:12.5px;font-weight:600;
+  font-family:inherit;padding:2px 4px;border-radius:5px;cursor:pointer;
+}
+.tdate:hover{background:var(--fill-quat)}
+.tdate:focus{background:var(--surface);box-shadow:0 0 0 2px var(--blue);outline:none;color:var(--text)}
+.titem.tone-red .tdate{color:var(--red-d)}
+.titem.tone-amber .tdate{color:var(--orange-d)}
+.tclient{flex:0 0 auto;max-width:110px;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tclient:hover{color:var(--blue);opacity:1}
 
 /* funnel bar */
 .funnel{display:flex;flex-direction:column;gap:9px}
@@ -502,8 +544,8 @@ td[data-task-cell]{min-width:170px;max-width:240px}
   .kanban{gap:10px;scroll-snap-type:x mandatory;scroll-padding:0}
   .kcol{flex:0 0 84%;max-height:calc(100vh - var(--header-h) - 132px)}
   .kcard{padding:12px}
-  .kcard .name{font-size:14px}
-  .kcard .meta{font-size:12px}
+  .kphone{font-size:14.5px}
+  .kcard .kf{font-size:13px}
   .mobnav{
     display:flex;position:fixed;bottom:0;left:0;right:0;z-index:45;
     background:rgba(247,247,250,.86);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);

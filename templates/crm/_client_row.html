@@ -1,0 +1,40 @@
+{% comment %}
+Строка клиента для «Списка» и «Главного». Ожидает в контексте: c (Client), stages (для смены стадии).
+Приоритет: телефон → что ищет → что есть → что делать (задача). Имя — вторично.
+{% endcomment %}
+<div class="ios-row tap" data-row data-select-row data-href="{{ c.get_absolute_url }}">
+  <span class="sel"><input type="checkbox" name="client_ids" value="{{ c.id }}"></span>
+  <span class="lead" style="background:{{ c.stage.color }}">{{ c.full_name|slice:':1'|upper }}</span>
+  <span class="body">
+    <span class="ttl">
+      {% if c.phone %}<button type="button" class="phone-copy" data-copy="{{ c.phone }}" onclick="event.stopPropagation()" title="Скопировать номер">{{ c.phone }}</button>{% else %}<span class="muted">без телефона</span>{% endif %}
+    </span>
+    <span class="sub">
+      {% if c.looking_for %}Ищет: {{ c.looking_for|truncatechars:24 }}{% endif %}
+      {% if c.what_has %}{% if c.looking_for %} · {% endif %}Есть: {{ c.what_has|truncatechars:24 }}{% endif %}
+      {% if not c.looking_for and not c.what_has %}—{% endif %}
+    </span>
+    {% with t=c.open_tasks.0 %}
+    {% if t %}
+      <span class="sub"><span class="task-dot {{ t.due_tone }}"></span>
+        <span class="{{ t.due_tone }}">{{ t.due_human }}{% if t.due_time %}, {{ t.due_time|time:"H:i" }}{% endif %}</span>
+        — {{ t.title|truncatechars:28 }}{% if c.open_tasks|length > 1 %} <span class="task-more">+{{ c.open_tasks|length|add:"-1" }}</span>{% endif %}
+      </span>
+    {% else %}
+      <span class="sub muted">{{ c.full_name }}{% if c.manager %} · {{ c.manager.display_name }}{% endif %}</span>
+      <button type="button" class="task-add" data-add-task data-url="{% url 'client_add_task' c.id %}"
+              data-client="{{ c.full_name }}" onclick="event.stopPropagation()">＋ задача</button>
+    {% endif %}
+    {% endwith %}
+  </span>
+  <span class="trail">
+    <select class="stage-select" data-stage-select data-url="{% url 'client_change_stage' c.id %}"
+            style="background:{{ c.stage.color }}" onclick="event.stopPropagation()" title="Сменить стадию">
+      {% for s in stages %}
+      <option value="{{ s.id }}" data-color="{{ s.color }}" {% if s.id == c.stage_id %}selected{% endif %}>{{ s.name }}</option>
+      {% endfor %}
+    </select>
+    {% if c.wa_number %}<a class="wa-mini" target="_blank" href="{% url 'client_whatsapp' c.id %}" onclick="event.stopPropagation()" title="WhatsApp" aria-label="WhatsApp">✆</a>{% endif %}
+  </span>
+  <span class="chev"></span>
+</div>

@@ -62,20 +62,45 @@ IMPORT_DIR = Path(settings.MEDIA_ROOT) / "imports"
 # --------------------------------------------------------------------------- #
 #  Dashboard
 # --------------------------------------------------------------------------- #
+# «Главное» показывает только текущую рабочую воронку — без «Сделка» и «Проигранные»,
+# чтобы старые закрытые лиды не перегружали основной экран.
+DASHBOARD_STAGE_SLUGS = ["new", "accepted", "consult", "hot", "cold", "frozen"]
+
+
 @login_required
 def dashboard(request):
-    """Главная: акцент на новых лидах и текущих задачах — не на всей базе."""
+    """Главное: акцент на новых лидах и текущей работе — не на всей базе."""
     user = request.user
     clients = clients_for(user)
     tasks = tasks_for(user)
     today = timezone.localdate()
 
+    dash_stages = list(
+        Stage.objects.filter(slug__in=DASHBOARD_STAGE_SLUGS, is_active=True).order_by("order")
+    )
+    stage_slug = request.GET.get("stage", "new")
+    if stage_slug not in DASHBOARD_STAGE_SLUGS:
+        stage_slug = "new"
+
+    open_tasks_qs = Task.objects.filter(
+        status__in=[Task.Status.NEW, Task.Status.IN_PROGRESS]
+    ).order_by("due_date", "due_time")
+    feed_qs = (
+        clients.filter(stage__slug=stage_slug)
+        .select_related("stage", "manager")
+        .prefetch_related(Prefetch("tasks", queryset=open_tasks_qs, to_attr="open_tasks"))
+        .order_by("-created_at")
+    )
+
     open_tasks = tasks.filter(status__in=[Task.Status.NEW, Task.Status.IN_PROGRESS])
-    new_leads = clients.filter(stage__slug="new").select_related("stage", "manager").order_by("-created_at")
 
     ctx = {
-        "new_leads": new_leads[:12],
-        "new_leads_count": new_leads.count(),
+        "dash_stages": dash_stages,
+        "dash_counts": {s.slug: clients.filter(stage=s).count() for s in dash_stages},
+        "stage_slug": stage_slug,
+        "feed": feed_qs[:30],
+        "feed_total": feed_qs.count(),
+        "stages": Stage.objects.filter(is_active=True),  # для смены стадии прямо в строке
         "clients_total": clients.count(),
         "tasks_today": open_tasks.filter(due_date=today).count(),
         "tasks_overdue": open_tasks.filter(due_date__lt=today).count(),
@@ -672,6 +697,43 @@ def task_set_status(request, pk):
         return JsonResponse({"ok": True, "status": task.get_status_display()})
     flash.success(request, "Статус обновлён")
     return redirect(request.META.get("HTTP_REFERER") or task.get_absolute_url())
+
+
+TASK_INLINE_EDITABLE_FIELDS = {"title", "due_date", "due_time"}
+
+
+@login_required
+@require_POST
+def task_inline_update(request, pk):
+    """Правка задачи на месте в списке: клик → курсор → ввод (как в Excel)."""
+    task = get_object_or_404(tasks_for(request.user), pk=pk)
+    field = request.POST.get("field", "")
+    value = request.POST.get("value", "").strip()
+    if field not in TASK_INLINE_EDITABLE_FIELDS:
+        return HttpResponseBadRequest("bad field")
+    if field == "title" and not value:
+        return JsonResponse({"ok": False, "error": "Название не может быть пустым"}, status=400)
+    if field in {"due_date", "due_time"} and not value:
+        setattr(task, field, None)
+    elif field == "due_date":
+        try:
+            task.due_date = timezone.datetime.strptime(value, "%Y-%m-%d").date()
+        except ValueError:
+            return JsonResponse({"ok": False, "error": "Неверная дата"}, status=400)
+    elif field == "due_time":
+        try:
+            task.due_time = timezone.datetime.strptime(value, "%H:%M").time()
+        except ValueError:
+            return JsonResponse({"ok": False, "error": "Неверное время"}, status=400)
+    else:
+        setattr(task, field, value)
+    task.save(update_fields=[field, "updated_at"])
+    return JsonResponse({
+        "ok": True,
+        "due_human": task.due_human,
+        "due_tone": task.due_tone,
+        "is_overdue": task.is_overdue,
+    })
 
 
 @login_required

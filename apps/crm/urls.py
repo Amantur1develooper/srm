@@ -34,6 +34,7 @@ urlpatterns = [
     path("tasks/new/", views.task_create, name="task_create"),
     path("tasks/<int:pk>/", views.task_detail, name="task_detail"),
     path("tasks/<int:pk>/status/", views.task_set_status, name="task_set_status"),
+    path("tasks/<int:pk>/inline/", views.task_inline_update, name="task_inline_update"),
     path("tasks/<int:pk>/message/", views.task_make_message, name="task_make_message"),
 
     # Сообщения и шаблоны

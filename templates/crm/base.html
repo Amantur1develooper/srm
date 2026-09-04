@@ -15,7 +15,7 @@
     <div class="brand"><span class="dot"></span> Webordo CRM</div>
     <nav class="nav">
       {% url 'dashboard' as u_dash %}
-      <a href="{{ u_dash }}" class="{% if request.path == u_dash %}active{% endif %}"><span class="ico" style="background:#0a84ff33">📊</span> Главная</a>
+      <a href="{{ u_dash }}" class="{% if request.path == u_dash %}active{% endif %}"><span class="ico" style="background:#0a84ff33">📊</span> Главное</a>
       <a href="{% url 'client_list' %}" class="{% if '/clients' in request.path %}active{% endif %}"><span class="ico" style="background:#34c75933">📋</span> Список</a>
       <a href="{% url 'kanban' %}" class="{% if '/kanban' in request.path %}active{% endif %}"><span class="ico" style="background:#ff950033">🗂️</span> Канбан</a>
       <a href="{% url 'task_list' %}" class="{% if '/tasks' in request.path %}active{% endif %}"><span class="ico" style="background:#ff453a33">✅</span> Задачи
@@ -76,7 +76,7 @@
 </div>
 
 <nav class="mobnav">
-  <a href="{% url 'dashboard' %}" class="{% if request.path == u_dash %}active{% endif %}"><span class="ico">📊</span>Главная</a>
+  <a href="{% url 'dashboard' %}" class="{% if request.path == u_dash %}active{% endif %}"><span class="ico">📊</span>Главное</a>
   <a href="{% url 'client_list' %}" class="{% if '/clients' in request.path %}active{% endif %}"><span class="ico">📋</span>Список</a>
   <a href="{% url 'kanban' %}" class="{% if '/kanban' in request.path %}active{% endif %}"><span class="ico">🗂️</span>Канбан</a>
   <a href="{% url 'task_list' %}" class="{% if '/tasks' in request.path %}active{% endif %}" style="position:relative"><span class="ico">✅</span>Задачи{% if nav_tasks_overdue %}<span class="badge red">{{ nav_tasks_overdue }}</span>{% endif %}</a>

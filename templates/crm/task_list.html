@@ -14,7 +14,7 @@
   <a class="chip {% if tab == 'done' %}active{% endif %}" href="?tab=done{% if filter_query %}&{{ filter_query }}{% endif %}">Выполнено · {{ counts.done }}</a>
 </div>
 
-<form method="get" style="margin-bottom:var(--sp-4)">
+<form method="get" style="margin-bottom:var(--sp-3)">
   <input type="hidden" name="tab" value="{{ tab }}">
   <details class="filters"{% if has_filters %} open{% endif %}>
     <summary>Фильтры</summary>
@@ -33,36 +33,16 @@
   </details>
 </form>
 
-<div class="ios-list">
+<div class="tlist" data-inline-url="{% url 'task_inline_update' 0 %}">
   {% for t in tasks %}
-  <div class="ios-row tap tone-{{ t.due_tone }}{% if t.status == 'done' %} is-done{% endif %}" data-row-link="{{ t.get_absolute_url }}">
-    <span class="lead-check">
-      {% if t.is_open %}
-      <form method="post" action="{% url 'task_set_status' t.id %}" data-ajax-form>{% csrf_token %}
-        <input type="hidden" name="status" value="done">
-        <button class="tcheck" title="Отметить выполненной" aria-label="Выполнена"></button>
-      </form>
-      {% else %}<span class="tcheck done" aria-hidden="true">✓</span>{% endif %}
-    </span>
-    <span class="body">
-      <span class="ttl {% if t.status == 'done' %}strike{% endif %}">{{ t.title }}</span>
-      <span class="sub">
-        <span class="task-dot {{ t.due_tone }}"></span>
-        <span class="{{ t.due_tone }}">{% if t.due_date %}{{ t.due_human }}{% if t.due_time %}, {{ t.due_time|time:"H:i" }}{% endif %}{% else %}без срока{% endif %}</span>
-        · {{ t.client.full_name }}
-      </span>
-      {% if t.comment %}<span class="sub">{{ t.comment|truncatechars:70 }}</span>{% endif %}
-    </span>
-    <span class="trail">
-      <select class="stage-select" data-stage-select data-url="{% url 'client_change_stage' t.client.id %}"
-              style="background:{{ t.client.stage.color }}" onclick="event.stopPropagation()" title="Сменить стадию">
-        {% for s in stages %}
-        <option value="{{ s.id }}" data-color="{{ s.color }}" {% if s.id == t.client.stage_id %}selected{% endif %}>{{ s.name }}</option>
-        {% endfor %}
-      </select>
-      <a class="wa-mini" href="{% url 'task_make_message' t.id %}" onclick="event.stopPropagation()" title="Создать сообщение" aria-label="Сообщение">💬</a>
-    </span>
-    <span class="chev"></span>
+  <div class="titem tone-{{ t.due_tone }}{% if t.status == 'done' %} is-done{% endif %}" data-task-id="{{ t.id }}" data-row-link="{{ t.get_absolute_url }}">
+    <form method="post" action="{% url 'task_set_status' t.id %}" data-tcheck-form class="tcheck-form">{% csrf_token %}
+      <input type="hidden" name="status" value="{% if t.status == 'done' %}new{% else %}done{% endif %}">
+      <button type="submit" class="tcheck2{% if t.status == 'done' %} done{% endif %}" aria-label="Выполнено"></button>
+    </form>
+    <span class="ttext kf" contenteditable data-field="title" data-task-id="{{ t.id }}">{{ t.title }}</span>
+    <input type="date" class="tdate" data-field="due_date" data-task-id="{{ t.id }}" value="{{ t.due_date|date:'Y-m-d' }}">
+    <a href="{{ t.client.get_absolute_url }}" class="tclient">{{ t.client.full_name }}</a>
   </div>
   {% empty %}
   <div class="empty"><div class="big">✅</div>Задач в этой вкладке нет</div>

@@ -1,8 +1,9 @@
 {% extends "crm/base.html" %}
-{% block title %}Главная — Webordo CRM{% endblock %}
+{% load crm_extras %}
+{% block title %}Главное — Webordo CRM{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><h1>Новые лиды</h1></div>
+  <div><h1>Главное</h1></div>
   <div class="actions">
     <a href="{% url 'client_list' %}" class="btn secondary">Весь список</a>
     <a href="{% url 'client_create' %}" class="btn">＋</a>
@@ -10,29 +11,27 @@
 </div>
 
 <div class="stats" style="margin-bottom:var(--sp-4);grid-template-columns:repeat(3,1fr)">
-  <a class="stat accent" href="{% url 'client_list' %}?stage=new"><div class="k">Новых лидов</div><div class="v">{{ new_leads_count }}</div></a>
+  <a class="stat accent" href="?stage=new"><div class="k">Новых лидов</div><div class="v">{{ dash_counts.new|default:0 }}</div></a>
   <a class="stat {% if tasks_overdue %}danger{% endif %}" href="{% url 'task_list' %}?tab=overdue"><div class="k">Просрочено задач</div><div class="v">{{ tasks_overdue }}</div></a>
   <a class="stat" href="{% url 'task_list' %}?tab=today"><div class="k">Задач сегодня</div><div class="v">{{ tasks_today }}</div></a>
 </div>
 
-<div class="ios-list">
-  {% for c in new_leads %}
-  <div class="ios-row tap" onclick="location='{{ c.get_absolute_url }}'">
-    <span class="lead" style="background:{{ c.stage.color }}">{{ c.full_name|slice:':1'|upper }}</span>
-    <span class="body">
-      <span class="ttl">{{ c.full_name }}</span>
-      <span class="sub">{{ c.phone|default:"—" }}{% if c.looking_for %} · {{ c.looking_for|truncatechars:44 }}{% endif %}</span>
-    </span>
-    <span class="trail">{{ c.manager.display_name|default:"не назначен" }}</span>
-    <span class="chev"></span>
-  </div>
-  {% empty %}
-  <div class="empty"><div class="big">✅</div>Новых лидов нет — все в работе</div>
+<div class="chips" style="margin-bottom:var(--sp-3)">
+  {% for s in dash_stages %}
+  <a class="chip {% if stage_slug == s.slug %}active{% endif %}" href="?stage={{ s.slug }}">{{ s.name }} · {{ dash_counts|get:s.slug|default:0 }}</a>
   {% endfor %}
 </div>
-{% if new_leads_count > 12 %}
+
+<div class="ios-list">
+  {% for c in feed %}
+    {% include "crm/_client_row.html" %}
+  {% empty %}
+  <div class="empty"><div class="big">✅</div>Пусто на этой стадии</div>
+  {% endfor %}
+</div>
+{% if feed_total > 30 %}
 <div class="row" style="justify-content:center;margin-top:var(--sp-3)">
-  <a href="{% url 'client_list' %}?stage=new" class="btn secondary sm">Ещё {{ new_leads_count|add:"-12" }}</a>
+  <a href="{% url 'client_list' %}?stage={{ stage_slug }}" class="btn secondary sm">Ещё {{ feed_total|add:"-30" }} — открыть в Списке</a>
 </div>
 {% endif %}
 
@@ -54,8 +53,4 @@
   {% endfor %}
 </div>
 {% endif %}
-
-<p class="muted" style="margin-top:var(--sp-6);text-align:center">
-  Всего в базе {{ clients_total }} — <a href="{% url 'client_list' %}">открыть список</a>
-</p>
 {% endblock %}

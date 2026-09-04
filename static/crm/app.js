@@ -65,6 +65,16 @@
         refresh();
       });
     }
+    // «Выбрать всё» одной кнопкой — сразу включает режим и отмечает всё видимое
+    const selectAllNow = document.querySelector("[data-select-all-now]");
+    if (selectAllNow) {
+      selectAllNow.addEventListener("click", function () {
+        document.body.classList.add("selecting");
+        if (selectToggle) selectToggle.textContent = "Готово";
+        boxes().forEach((b) => { b.checked = true; markRow(b); });
+        refresh();
+      });
+    }
 
     // Клик по строке: в обычном режиме — открыть карточку; в режиме выбора — отметить.
     document.querySelectorAll("[data-select-row]").forEach(function (row) {
@@ -117,9 +127,10 @@
     btn.addEventListener("click", function (e) {
       e.stopPropagation();
       const original = btn.textContent;
+      const feedback = btn.classList.contains("kcopy") ? "✓" : "Скопировано";
       copyText(btn.dataset.copy).then(function () {
         btn.classList.add("copied");
-        btn.textContent = "Скопировано";
+        btn.textContent = feedback;
         setTimeout(function () {
           btn.classList.remove("copied");
           btn.textContent = original;
@@ -131,7 +142,7 @@
   // ---- клик по строке-ссылке (таблица задач) ----
   document.querySelectorAll("[data-row-link]").forEach(function (row) {
     row.addEventListener("click", function (e) {
-      if (e.target.closest("a,button,form,input,select,textarea,label")) return;
+      if (e.target.closest("a,button,form,input,select,textarea,label,[contenteditable]")) return;
       window.location = row.dataset.rowLink;
     });
   });
@@ -446,6 +457,75 @@
           errBox.textContent = "Не удалось создать задачу. Попробуйте ещё раз.";
           errBox.hidden = false;
         });
+    });
+  }
+
+  // ---- компактный список задач (Apple Notes: галочка, правка текста и даты на месте) ----
+  const tlist = document.querySelector(".tlist");
+  if (tlist) {
+    const inlineUrlTpl = tlist.dataset.inlineUrl; // /tasks/0/inline/
+
+    // галочка "выполнено" — без перезагрузки страницы
+    tlist.querySelectorAll("[data-tcheck-form]").forEach(function (form) {
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        const item = form.closest(".titem");
+        const btn = form.querySelector(".tcheck2");
+        const willBeDone = !btn.classList.contains("done");
+        fetch(form.action, {
+          method: "POST",
+          headers: { "X-Requested-With": "XMLHttpRequest", "X-CSRFToken": csrf() },
+          body: new FormData(form),
+        })
+          .then((r) => r.json())
+          .then((d) => {
+            if (!d.ok) return;
+            btn.classList.toggle("done", willBeDone);
+            item.classList.toggle("is-done", willBeDone);
+            form.querySelector('[name="status"]').value = willBeDone ? "new" : "done";
+          });
+      });
+    });
+
+    // текст задачи — клик → курсор → правка
+    tlist.querySelectorAll(".ttext").forEach(function (el) {
+      let before = el.textContent;
+      el.addEventListener("focus", function () { before = el.textContent; });
+      el.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") { e.preventDefault(); el.blur(); }
+        if (e.key === "Escape") { el.textContent = before; el.blur(); }
+      });
+      el.addEventListener("blur", function () {
+        const val = el.textContent.trim();
+        if (!val) { el.textContent = before; return; }
+        if (val === before.trim()) return;
+        fetch(inlineUrlTpl.replace("0", el.dataset.taskId), {
+          method: "POST",
+          headers: { "X-Requested-With": "XMLHttpRequest", "X-CSRFToken": csrf(), "Content-Type": "application/x-www-form-urlencoded" },
+          body: "field=title&value=" + encodeURIComponent(val),
+        })
+          .then((r) => r.json())
+          .then((d) => { if (d.ok) before = val; else el.textContent = before; })
+          .catch(() => { el.textContent = before; });
+      });
+    });
+
+    // дата задачи — нативный календарь, сохраняется сразу при выборе
+    tlist.querySelectorAll(".tdate").forEach(function (el) {
+      el.addEventListener("change", function () {
+        const item = el.closest(".titem");
+        fetch(inlineUrlTpl.replace("0", el.dataset.taskId), {
+          method: "POST",
+          headers: { "X-Requested-With": "XMLHttpRequest", "X-CSRFToken": csrf(), "Content-Type": "application/x-www-form-urlencoded" },
+          body: "field=due_date&value=" + encodeURIComponent(el.value),
+        })
+          .then((r) => r.json())
+          .then((d) => {
+            if (!d.ok) return;
+            item.classList.remove("tone-red", "tone-amber", "tone-green");
+            item.classList.add("tone-" + d.due_tone);
+          });
+      });
     });
   }
 
