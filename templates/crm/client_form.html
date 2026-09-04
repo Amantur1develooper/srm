@@ -1,16 +1,40 @@
 {% extends "crm/base.html" %}
-{% block title %}{{ title }} — Webordo SRM{% endblock %}
+{% block title %}{{ title }} — Webordo CRM{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
-    {% if client %}<a href="{{ client.get_absolute_url }}" class="muted">← {{ client.full_name }}</a>{% else %}<a href="{% url 'client_list' %}" class="muted">← Клиенты</a>{% endif %}
+    {% if client %}<a href="{{ client.get_absolute_url }}" class="muted">← {{ client.full_name }}</a>{% else %}<a href="{% url 'client_list' %}" class="muted">← Список</a>{% endif %}
     <h1 style="margin-top:4px">{{ title }}</h1>
   </div>
 </div>
 <form method="post" class="card pad">
   {% csrf_token %}
-  {% if form.non_field_errors %}<div class="badge red" style="display:block;padding:10px">{{ form.non_field_errors }}</div>{% endif %}
-  <div class="form-grid">{% include "crm/_form.html" %}</div>
+  {% if form.non_field_errors %}<div class="badge red" style="display:block;padding:10px;margin-bottom:var(--sp-3)">{{ form.non_field_errors }}</div>{% endif %}
+  <div class="grid cols-2">
+    <div class="stack">
+      <b class="muted" style="font-size:12px;text-transform:uppercase">Основные данные</b>
+      <div class="form-row">{{ form.last_name.label_tag }}{{ form.last_name }}{{ form.last_name.errors }}</div>
+      <div class="form-row">{{ form.first_name.label_tag }}{{ form.first_name }}{{ form.first_name.errors }}</div>
+      <div class="form-row">{{ form.middle_name.label_tag }}{{ form.middle_name }}</div>
+      <div class="form-row">{{ form.phone.label_tag }}{{ form.phone }}{{ form.phone.errors }}</div>
+      <div class="form-row">{{ form.manager.label_tag }}{{ form.manager }}</div>
+    </div>
+    <div class="stack">
+      <b class="muted" style="font-size:12px;text-transform:uppercase">По сделке</b>
+      <div class="form-row">{{ form.looking_for.label_tag }}{{ form.looking_for }}</div>
+      <div class="form-row">{{ form.what_has.label_tag }}{{ form.what_has }}</div>
+      <div class="form-row">{{ form.comment.label_tag }}{{ form.comment }}</div>
+      {% if not client %}
+      <div class="form-row full">
+        <label>Задача</label>
+        <div class="row">
+          <div style="flex:2">{{ form.task_title }}</div>
+          <div style="flex:1">{{ form.task_date }}</div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
   <div class="row" style="margin-top:var(--sp-4)">
     <button class="btn">Сохранить</button>
     <a href="{% if client %}{{ client.get_absolute_url }}{% else %}{% url 'client_list' %}{% endif %}" class="btn ghost">Отмена</a>

@@ -110,3 +110,58 @@ class AccessTests(TestCase):
         self.assertEqual(self.c1.stage_id, hot.id)
         self.assertTrue(self.c1.history.filter(kind="stage").exists())
         self.assertTrue(self.c1.tasks.filter(title="Связаться с клиентом").exists())
+
+    def test_bulk_delete(self):
+        self.client.login(username="m1", password="x")
+        self.client.post("/clients/bulk/", {"client_ids": [self.c1.id], "action": "delete"})
+        self.assertFalse(Client.objects.filter(pk=self.c1.id).exists())
+
+    def test_inline_update(self):
+        self.client.login(username="m1", password="x")
+        resp = self.client.post(
+            f"/clients/{self.c1.id}/inline/", {"field": "phone", "value": "0700111222"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.c1.refresh_from_db()
+        self.assertEqual(self.c1.phone, "0700111222")
+        # чужого клиента править нельзя
+        resp = self.client.post(
+            f"/clients/{self.c2.id}/inline/", {"field": "phone", "value": "x"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(resp.status_code, 404)
+
+    def test_quick_create_in_kanban(self):
+        self.client.login(username="m1", password="x")
+        resp = self.client.post(
+            "/kanban/quick-add/", {"stage": self.stage.id, "full_name": "Новый Лид", "phone": "0700"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(Client.objects.filter(full_name="Новый Лид", manager=self.m1).exists())
+
+
+class ClientFormTests(TestCase):
+    def setUp(self):
+        self.stage = Stage.objects.create(name="Новая", slug="new", order=1)
+
+    def test_requires_name_on_create(self):
+        from .forms import ClientForm
+
+        form = ClientForm(data={"last_name": "", "first_name": "", "phone": "123"})
+        self.assertFalse(form.is_valid())
+        self.assertIn("last_name", form.errors)
+
+    def test_legacy_client_editable_without_name_parts(self):
+        from .forms import ClientForm
+
+        legacy = Client.objects.create(full_name="Одной строкой ФИО", stage=self.stage)
+        form = ClientForm(data={"last_name": "", "first_name": "", "phone": "555"}, instance=legacy)
+        self.assertTrue(form.is_valid(), form.errors)
+        obj = form.save(commit=False)
+        self.assertEqual(obj.full_name, "Одной строкой ФИО")  # не затёрлось
+
+    def test_compose_full_name_from_parts(self):
+        c = Client.objects.create(last_name="Осмонов", first_name="Азамат", stage=self.stage)
+        self.assertEqual(c.full_name, "Осмонов Азамат")

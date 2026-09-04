@@ -9,7 +9,7 @@ User = get_user_model()
 
 
 def _manager_qs():
-    return User.objects.filter(is_active=True).order_by("first_name", "username")
+    return User.objects.filter(is_active=True, role="manager").order_by("first_name", "username")
 
 
 class BootstrapMixin:
@@ -31,27 +31,46 @@ class BootstrapMixin:
 
 
 class ClientForm(BootstrapMixin, forms.ModelForm):
+    """Упрощённая карточка сделки: только поля из согласованной логики.
+
+    Слева — кто это (ФИО по частям, телефон, менеджер).
+    Справа — что по сделке (что ищет / что есть / комментарий).
+    Дата обращения проставляется автоматически (см. views.client_create).
+    """
+
+    task_title = forms.CharField(
+        label="Задача", required=False,
+        widget=forms.TextInput(attrs={"placeholder": "Например: перезвонить"}),
+    )
+    task_date = forms.DateField(label="Дата", required=False, widget=forms.DateInput(attrs={"type": "date"}))
+
     class Meta:
         model = Client
-        fields = [
-            "full_name", "phone", "phone_extra", "whatsapp_phone",
-            "first_contact_date", "manager", "source", "stage",
-            "looking_for", "budget", "next_step", "next_step_at", "comment",
-        ]
+        fields = ["last_name", "first_name", "middle_name", "phone", "manager", "looking_for", "what_has", "comment"]
         widgets = {
-            "first_contact_date": forms.DateInput(attrs={"type": "date"}),
-            "next_step_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
             "looking_for": forms.Textarea(attrs={"rows": 2}),
+            "what_has": forms.Textarea(attrs={"rows": 2}),
             "comment": forms.Textarea(attrs={"rows": 3}),
         }
+        labels = {"looking_for": "Что ищет", "what_has": "Что есть"}
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["manager"].queryset = _manager_qs()
-        self.fields["stage"].queryset = Stage.objects.filter(is_active=True)
+        self.fields["last_name"].widget.attrs["autofocus"] = True
         if user is not None and not user.can_see_all_clients:
             self.fields["manager"].initial = user
             self.fields["manager"].disabled = True
+
+    def clean(self):
+        cleaned = super().clean()
+        # На новой сделке нужна хоть какая-то часть имени. Старые лиды (импорт, где
+        # ФИО хранится одной строкой) редактируем и без фамилии/имени по частям.
+        has_parts = cleaned.get("last_name") or cleaned.get("first_name")
+        existing_full_name = self.instance.full_name if self.instance and self.instance.pk else ""
+        if not has_parts and not existing_full_name:
+            self.add_error("last_name", "Укажите фамилию или имя")
+        return cleaned
 
 
 class TaskForm(BootstrapMixin, forms.ModelForm):

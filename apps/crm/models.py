@@ -1,4 +1,4 @@
-"""Модели CRM Webordo SRM.
+"""Модели Webordo CRM.
 
 Сущности спроектированы с прицелом на второй этап (WhatsApp Business API),
 чтобы не переделывать схему при подключении автоматизации.
@@ -89,6 +89,9 @@ class Client(models.Model):
         OTHER = "other", "Другое"
 
     full_name = models.CharField("ФИО", max_length=255)
+    last_name = models.CharField("Фамилия", max_length=100, blank=True)
+    first_name = models.CharField("Имя", max_length=100, blank=True)
+    middle_name = models.CharField("Отчество", max_length=100, blank=True)
     phone = models.CharField("Телефон", max_length=32, blank=True)
     phone_normalized = models.CharField("Телефон (норм.)", max_length=32, blank=True, db_index=True)
     phone_extra = models.CharField("Доп. телефон", max_length=32, blank=True)
@@ -106,7 +109,8 @@ class Client(models.Model):
     source = models.CharField("Источник", max_length=16, choices=Source.choices, default=Source.UNKNOWN)
     stage = models.ForeignKey(Stage, verbose_name="Стадия", on_delete=models.PROTECT, related_name="clients")
 
-    looking_for = models.TextField("Что ищет / что есть", blank=True)
+    looking_for = models.TextField("Что ищет", blank=True)
+    what_has = models.TextField("Что есть", blank=True)
     budget = models.CharField("Бюджет", max_length=255, blank=True)
     comment = models.TextField("Комментарий", blank=True)
 
@@ -130,6 +134,14 @@ class Client(models.Model):
 
     def __str__(self) -> str:
         return self.full_name
+
+    def save(self, *args, **kwargs):
+        # Если ФИО введено по частям (Фамилия/Имя/Отчество) — собираем строку для поиска и отображения.
+        if self.last_name or self.first_name or self.middle_name:
+            self.full_name = " ".join(
+                p for p in (self.last_name, self.first_name, self.middle_name) if p
+            ).strip() or self.full_name
+        super().save(*args, **kwargs)
 
     def get_absolute_url(self) -> str:
         return reverse("client_detail", args=[self.pk])

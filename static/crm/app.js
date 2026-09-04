@@ -35,7 +35,11 @@
     }
     function refresh() {
       const n = document.querySelectorAll("[name=client_ids]:checked").length;
-      if (bar) bar.hidden = !document.body.classList.contains("selecting") || n === 0;
+      const selecting = document.body.classList.contains("selecting");
+      if (bar) {
+        bar.hidden = !selecting;
+        bar.classList.toggle("bulkbar-empty", n === 0);
+      }
       if (counter) counter.textContent = n;
     }
     document.addEventListener("change", function (e) {
@@ -50,6 +54,14 @@
         if (!on) {
           boxes().forEach((b) => { b.checked = false; markRow(b); });
         }
+        refresh();
+      });
+    }
+    const selectAllBtn = document.querySelector("[data-select-all-btn]");
+    if (selectAllBtn) {
+      selectAllBtn.addEventListener("click", function () {
+        const allChecked = Array.from(boxes()).every((b) => b.checked);
+        boxes().forEach((b) => { b.checked = !allChecked; markRow(b); });
         refresh();
       });
     }
@@ -78,6 +90,44 @@
     });
   });
 
+  // ---- копирование телефона одним кликом (как ячейка Excel) ----
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text);
+    }
+    // HTTP без TLS — Clipboard API недоступен, откат на execCommand
+    return new Promise(function (resolve, reject) {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      try {
+        document.execCommand("copy") ? resolve() : reject();
+      } catch (e) {
+        reject(e);
+      } finally {
+        document.body.removeChild(ta);
+      }
+    });
+  }
+  document.querySelectorAll("[data-copy]").forEach(function (btn) {
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      const original = btn.textContent;
+      copyText(btn.dataset.copy).then(function () {
+        btn.classList.add("copied");
+        btn.textContent = "Скопировано";
+        setTimeout(function () {
+          btn.classList.remove("copied");
+          btn.textContent = original;
+        }, 1000);
+      });
+    });
+  });
+
   // ---- клик по строке-ссылке (таблица задач) ----
   document.querySelectorAll("[data-row-link]").forEach(function (row) {
     row.addEventListener("click", function (e) {
@@ -93,6 +143,8 @@
     board.addEventListener("dragstart", function (e) {
       const card = e.target.closest(".kcard");
       if (!card) return;
+      if (document.body.classList.contains("selecting")) { e.preventDefault(); return; }
+      if (e.target.closest("[contenteditable],input,button,a,select,textarea")) { e.preventDefault(); return; }
       dragged = card;
       card.classList.add("dragging");
       e.dataTransfer.effectAllowed = "move";
@@ -135,6 +187,64 @@
         if (c) c.textContent = col.querySelectorAll(".kcard").length;
       });
     }
+
+    // ---- быстрое добавление заявки/сделки прямо в колонке ----
+    document.querySelectorAll("[data-kadd]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        const col = btn.closest(".kcol");
+        const form = col.querySelector("[data-kquick]");
+        form.hidden = !form.hidden;
+        if (!form.hidden) form.querySelector('[name="full_name"]').focus();
+      });
+    });
+    document.querySelectorAll("[data-kquick-cancel]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        btn.closest("[data-kquick]").hidden = true;
+      });
+    });
+    document.querySelectorAll("[data-kquick]").forEach(function (form) {
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        const fd = new FormData(form);
+        fd.set("stage", form.dataset.stageId);
+        fetch(board.dataset.quickUrl, {
+          method: "POST",
+          headers: { "X-Requested-With": "XMLHttpRequest", "X-CSRFToken": csrf() },
+          body: fd,
+        })
+          .then((r) => r.json())
+          .then((d) => {
+            if (d.ok) location.reload();
+          });
+      });
+    });
+
+    // ---- редактирование прямо на карточке: клик → курсор → ввод (как в Excel) ----
+    board.querySelectorAll(".kf").forEach(function (el) {
+      let before = el.textContent;
+      el.addEventListener("focus", function () { before = el.textContent; });
+      el.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") { e.preventDefault(); el.blur(); }
+        if (e.key === "Escape") { el.textContent = before; el.blur(); }
+      });
+      el.addEventListener("blur", function () {
+        const val = el.textContent.trim();
+        if (val === before.trim()) return;
+        el.classList.add("saving");
+        fetch(board.dataset.inlineUrl.replace("0", el.dataset.clientId), {
+          method: "POST",
+          headers: { "X-Requested-With": "XMLHttpRequest", "X-CSRFToken": csrf(), "Content-Type": "application/x-www-form-urlencoded" },
+          body: "field=" + encodeURIComponent(el.dataset.field) + "&value=" + encodeURIComponent(val),
+        })
+          .then((r) => r.json())
+          .then((d) => {
+            el.classList.remove("saving");
+            if (!d.ok) { el.textContent = before; alert(d.error || "Не удалось сохранить"); }
+            else before = val;
+          })
+          .catch(() => { el.classList.remove("saving"); el.textContent = before; });
+      });
+    });
   }
 
   // ---- быстрая смена статуса (AJAX) ----

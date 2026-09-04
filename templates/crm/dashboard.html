@@ -1,102 +1,61 @@
 {% extends "crm/base.html" %}
-{% load humanize %}
-{% block title %}Главная — Webordo SRM{% endblock %}
+{% block title %}Главная — Webordo CRM{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div>
-    <h1>Здравствуйте, {{ user.display_name }}</h1>
-    <small>{% now "l, d E Y" %}</small>
-  </div>
+  <div><h1>Новые лиды</h1></div>
   <div class="actions">
-    <a href="{% url 'client_create' %}" class="btn">＋ Клиент</a>
-    <a href="{% url 'task_create' %}" class="btn secondary">＋ Задача</a>
-    <a href="{% url 'template_list' %}" class="btn secondary">＋ Сообщение</a>
-    {% if user.can_manage_settings or user.is_head_role %}
-    <a href="{% url 'import_upload' %}" class="btn secondary">📥 Импорт Excel</a>
-    {% endif %}
+    <a href="{% url 'client_list' %}" class="btn secondary">Весь список</a>
+    <a href="{% url 'client_create' %}" class="btn">＋</a>
   </div>
 </div>
 
-<h3>Клиенты</h3>
-<div class="stats" style="margin-bottom:var(--sp-6)">
-  <a class="stat" href="{% url 'client_list' %}"><div class="k">Всего</div><div class="v">{{ clients_total }}</div></a>
-  <a class="stat accent" href="{% url 'client_list' %}?stage=new"><div class="k">Новые</div><div class="v">{{ clients_new }}</div></a>
-  <a class="stat danger" href="{% url 'client_list' %}?stage=hot"><div class="k">Горячие</div><div class="v">{{ clients_hot }}</div></a>
-  <a class="stat" href="{% url 'client_list' %}"><div class="k">В работе</div><div class="v">{{ clients_in_work }}</div></a>
-  <a class="stat success" href="{% url 'client_list' %}?stage=won"><div class="k">Сделки</div><div class="v">{{ clients_won }}</div></a>
-  <a class="stat" href="{% url 'client_list' %}?stage=lost"><div class="k">Проигранные</div><div class="v">{{ clients_lost }}</div></a>
-  <a class="stat" href="{% url 'client_list' %}?stage=frozen"><div class="k">Заморожены</div><div class="v">{{ clients_frozen }}</div></a>
+<div class="stats" style="margin-bottom:var(--sp-4);grid-template-columns:repeat(3,1fr)">
+  <a class="stat accent" href="{% url 'client_list' %}?stage=new"><div class="k">Новых лидов</div><div class="v">{{ new_leads_count }}</div></a>
+  <a class="stat {% if tasks_overdue %}danger{% endif %}" href="{% url 'task_list' %}?tab=overdue"><div class="k">Просрочено задач</div><div class="v">{{ tasks_overdue }}</div></a>
+  <a class="stat" href="{% url 'task_list' %}?tab=today"><div class="k">Задач сегодня</div><div class="v">{{ tasks_today }}</div></a>
 </div>
 
-<div class="grid cols-2" style="margin-bottom:var(--sp-6)">
-  <div>
-    <h3>Задачи</h3>
-    <div class="stats">
-      <a class="stat amber" href="{% url 'task_list' %}?tab=today"><div class="k">На сегодня</div><div class="v">{{ tasks_today }}</div></a>
-      <a class="stat danger" href="{% url 'task_list' %}?tab=overdue"><div class="k">Просрочено</div><div class="v">{{ tasks_overdue }}</div></a>
-      <a class="stat" href="{% url 'task_list' %}?tab=upcoming"><div class="k">Ближайшие</div><div class="v">{{ tasks_upcoming }}</div></a>
-      <a class="stat success" href="{% url 'task_list' %}?tab=done"><div class="k">Выполнено</div><div class="v">{{ tasks_done }}</div></a>
-    </div>
+<div class="ios-list">
+  {% for c in new_leads %}
+  <div class="ios-row tap" onclick="location='{{ c.get_absolute_url }}'">
+    <span class="lead" style="background:{{ c.stage.color }}">{{ c.full_name|slice:':1'|upper }}</span>
+    <span class="body">
+      <span class="ttl">{{ c.full_name }}</span>
+      <span class="sub">{{ c.phone|default:"—" }}{% if c.looking_for %} · {{ c.looking_for|truncatechars:44 }}{% endif %}</span>
+    </span>
+    <span class="trail">{{ c.manager.display_name|default:"не назначен" }}</span>
+    <span class="chev"></span>
   </div>
-  <div>
-    <h3>Продажи</h3>
-    <div class="stats">
-      <div class="stat"><div class="k">Новые заявки</div><div class="v">{{ clients_new }}</div></div>
-      <div class="stat success"><div class="k">Сделки</div><div class="v">{{ clients_won }}</div></div>
-      <div class="stat accent"><div class="k">Конверсия</div><div class="v">{{ conversion }}%</div></div>
-    </div>
-  </div>
+  {% empty %}
+  <div class="empty"><div class="big">✅</div>Новых лидов нет — все в работе</div>
+  {% endfor %}
 </div>
-
-<div class="split">
-  <div class="card">
-    <div class="card-h">Последние клиенты <a href="{% url 'client_list' %}" class="btn ghost sm" style="margin-left:auto">Все</a></div>
-    <div class="table-wrap" style="border:0">
-      <table class="tbl">
-        <thead><tr><th>Клиент</th><th>Стадия</th><th>Менеджер</th><th>Следующий шаг</th></tr></thead>
-        <tbody>
-          {% for c in recent_clients %}
-          <tr onclick="location='{{ c.get_absolute_url }}'" style="cursor:pointer">
-            <td><b>{{ c.full_name }}</b><br><small class="mono">{{ c.phone }}</small></td>
-            <td><span class="stage-pill" style="background:{{ c.stage.color }}">{{ c.stage.name }}</span></td>
-            <td>{{ c.manager.display_name|default:"—" }}</td>
-            <td>{{ c.next_step|default:"—" }}</td>
-          </tr>
-          {% empty %}<tr><td colspan="4" class="empty">Пока нет клиентов</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-h">Мои задачи</div>
-    <div class="card-b stack">
-      {% for t in my_tasks %}
-      <div class="row" style="justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:8px">
-        <div>
-          <a href="{{ t.get_absolute_url }}"><b>{{ t.title }}</b></a><br>
-          <small>{{ t.client.full_name }} · {% if t.due_date %}{{ t.due_date|date:"d.m" }}{% if t.due_time %} {{ t.due_time|time:"H:i" }}{% endif %}{% else %}без срока{% endif %}</small>
-        </div>
-        {% if t.is_overdue %}<span class="badge red">просрочено</span>{% endif %}
-      </div>
-      {% empty %}<div class="empty">Открытых задач нет 🎉</div>{% endfor %}
-    </div>
-  </div>
+{% if new_leads_count > 12 %}
+<div class="row" style="justify-content:center;margin-top:var(--sp-3)">
+  <a href="{% url 'client_list' %}?stage=new" class="btn secondary sm">Ещё {{ new_leads_count|add:"-12" }}</a>
 </div>
+{% endif %}
 
-<div class="card" style="margin-top:var(--sp-6)">
-  <div class="card-h">Клиенты по стадиям</div>
-  <div class="card-b">
-    <div class="funnel">
-      {% for s in stage_counts %}
-      <div class="frow">
-        <span class="fname">{{ s.stage__name }}</span>
-        <span class="fbar" style="background:{{ s.stage__color }};width:{% widthratio s.n clients_total 400 %}px"></span>
-        <span class="fval">{{ s.n }}</span>
-      </div>
-      {% endfor %}
-    </div>
+{% if my_tasks %}
+<h3 style="margin-top:var(--sp-6)">Мои задачи</h3>
+<div class="ios-list">
+  {% for t in my_tasks %}
+  <div class="ios-row tap" onclick="location='{{ t.get_absolute_url }}'">
+    <span class="body">
+      <span class="ttl">{{ t.title }}</span>
+      <span class="sub">
+        <span class="task-dot {{ t.due_tone }}"></span>
+        <span class="{{ t.due_tone }}">{{ t.due_human }}{% if t.due_time %}, {{ t.due_time|time:"H:i" }}{% endif %}</span>
+        · {{ t.client.full_name }}
+      </span>
+    </span>
+    <span class="chev"></span>
   </div>
+  {% endfor %}
 </div>
+{% endif %}
+
+<p class="muted" style="margin-top:var(--sp-6);text-align:center">
+  Всего в базе {{ clients_total }} — <a href="{% url 'client_list' %}">открыть список</a>
+</p>
 {% endblock %}

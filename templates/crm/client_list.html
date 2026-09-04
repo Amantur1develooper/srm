@@ -1,8 +1,8 @@
 {% extends "crm/base.html" %}
-{% block title %}Клиенты — Webordo SRM{% endblock %}
+{% block title %}Список — Webordo CRM{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><h1>Клиенты</h1><small>{{ total }} всего</small></div>
+  <div><h1>Список</h1><small>{{ total }} всего</small></div>
   <div class="actions">
     <button type="button" class="btn tint" id="selectToggle">Выбрать</button>
     <details class="menu">
@@ -52,6 +52,7 @@
   {% csrf_token %}
   <div class="bulkbar" data-bulkbar hidden>
     <b><span data-bulk-count>0</span> выбрано</b>
+    <button type="button" class="btn ghost sm" data-select-all-btn>Все на странице</button>
     <span class="sp" style="flex:1"></span>
     <select class="field-input field-select" style="max-width:150px" name="stage">
       <option value="">Стадия…</option>
@@ -68,6 +69,7 @@
     <button type="button" class="btn sm" data-bulk-task data-url="{% url 'client_bulk_task' %}">＋ Задача всем</button>
     <button class="btn sm secondary" name="action" value="export">Экспорт</button>
     <button class="btn sm secondary" name="action" value="broadcast">📣 Рассылка</button>
+    <button class="btn sm danger" name="action" value="delete" onclick="return confirm('Удалить выбранных клиентов без возможности восстановления?')">Удалить</button>
   </div>
 
   <div class="ios-list">
@@ -77,7 +79,10 @@
       <span class="lead" style="background:{{ c.stage.color }}">{{ c.full_name|slice:':1'|upper }}</span>
       <span class="body">
         <span class="ttl">{{ c.full_name }}</span>
-        <span class="sub">{{ c.phone|default:"—" }}{% if c.looking_for %} · {{ c.looking_for|truncatechars:44 }}{% endif %}</span>
+        <span class="sub">
+          {% if c.phone %}<button type="button" class="phone-copy" data-copy="{{ c.phone }}" onclick="event.stopPropagation()" title="Скопировать номер">{{ c.phone }}</button>{% else %}—{% endif %}
+          {% if c.looking_for %} · {{ c.looking_for|truncatechars:40 }}{% endif %}
+        </span>
         {% with t=c.open_tasks.0 %}
         {% if t %}
           <span class="sub"><span class="task-dot {{ t.due_tone }}"></span>

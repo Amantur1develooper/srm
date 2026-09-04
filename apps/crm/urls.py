@@ -22,10 +22,12 @@ urlpatterns = [
     path("clients/<int:pk>/comment/", views.client_add_comment, name="client_add_comment"),
     path("clients/<int:pk>/task/", views.client_add_task, name="client_add_task"),
     path("clients/<int:pk>/whatsapp/", views.client_whatsapp, name="client_whatsapp"),
+    path("clients/<int:pk>/inline/", views.client_inline_update, name="client_inline_update"),
 
     # Канбан
     path("kanban/", views.kanban, name="kanban"),
     path("kanban/move/", views.kanban_move, name="kanban_move"),
+    path("kanban/quick-add/", views.client_quick_create, name="client_quick_create"),
 
     # Задачи
     path("tasks/", views.task_list, name="task_list"),

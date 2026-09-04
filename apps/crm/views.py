@@ -64,46 +64,24 @@ IMPORT_DIR = Path(settings.MEDIA_ROOT) / "imports"
 # --------------------------------------------------------------------------- #
 @login_required
 def dashboard(request):
+    """Главная: акцент на новых лидах и текущих задачах — не на всей базе."""
     user = request.user
     clients = clients_for(user)
     tasks = tasks_for(user)
     today = timezone.localdate()
 
-    stage_counts = (
-        clients.values("stage__name", "stage__color", "stage__order")
-        .annotate(n=Count("id"))
-        .order_by("stage__order")
-    )
-    won_ids = list(Stage.objects.filter(is_won=True).values_list("id", flat=True))
-    lost_ids = list(Stage.objects.filter(is_lost=True).values_list("id", flat=True))
-
     open_tasks = tasks.filter(status__in=[Task.Status.NEW, Task.Status.IN_PROGRESS])
+    new_leads = clients.filter(stage__slug="new").select_related("stage", "manager").order_by("-created_at")
 
     ctx = {
+        "new_leads": new_leads[:12],
+        "new_leads_count": new_leads.count(),
         "clients_total": clients.count(),
-        "clients_new": clients.filter(stage__slug="new").count(),
-        "clients_hot": clients.filter(stage__slug="hot").count(),
-        "clients_in_work": clients.exclude(stage__id__in=won_ids + lost_ids).count(),
-        "clients_won": clients.filter(stage__id__in=won_ids).count(),
-        "clients_lost": clients.filter(stage__id__in=lost_ids).count(),
-        "clients_frozen": clients.filter(stage__slug="frozen").count(),
         "tasks_today": open_tasks.filter(due_date=today).count(),
         "tasks_overdue": open_tasks.filter(due_date__lt=today).count(),
-        "tasks_upcoming": open_tasks.filter(due_date__gt=today).count(),
-        "tasks_done": tasks.filter(status=Task.Status.DONE).count(),
-        "stage_counts": stage_counts,
-        "recent_clients": clients.order_by("-created_at")[:6],
-        "my_tasks": open_tasks.select_related("client").order_by("due_date", "due_time")[:8],
-        "conversion": _conversion(clients, won_ids),
+        "my_tasks": open_tasks.select_related("client").order_by("due_date", "due_time")[:6],
     }
     return render(request, "crm/dashboard.html", ctx)
-
-
-def _conversion(clients, won_ids):
-    total = clients.count()
-    if not total:
-        return 0
-    return round(clients.filter(stage__id__in=won_ids).count() / total * 100, 1)
 
 
 # --------------------------------------------------------------------------- #
@@ -135,7 +113,7 @@ def client_list(request):
         "page_obj": page,
         "total": paginator.count,
         "stages": Stage.objects.filter(is_active=True),
-        "managers": User.objects.filter(is_active=True).order_by("first_name", "username"),
+        "managers": User.objects.filter(is_active=True, role="manager").order_by("first_name", "username"),
         "templates": MessageTemplate.objects.filter(is_active=True),
         "current": request.GET,
         "sort": sort,
@@ -237,6 +215,10 @@ def client_bulk_action(request):
     elif action == "broadcast":
         request.session["broadcast_ids"] = list(map(int, ids))
         return redirect("broadcast_start")
+    elif action == "delete":
+        deleted = n
+        qs.delete()
+        flash.success(request, f"Удалено: {deleted}")
     else:
         flash.warning(request, "Неизвестное действие")
     return redirect(request.META.get("HTTP_REFERER", "client_list"))
@@ -268,14 +250,23 @@ def client_create(request):
         if not request.user.can_see_all_clients:
             client.manager = request.user
         client.created_by = request.user
+        client.first_contact_date = timezone.localdate()  # дата фиксации — автоматически
+        client.stage = Stage.objects.filter(slug="new", is_active=True).first() or Stage.objects.order_by("order").first()
         client.save()
         log_history(client, ClientHistory.Kind.CREATED, "Клиент создан", request.user)
         if client.manager and client.manager_id != request.user.id:
             notify(client.manager, Notification.Kind.CLIENT_ASSIGNED,
                    f"Вам назначен клиент: {client.full_name}", client.get_absolute_url())
+        title = form.cleaned_data.get("task_title")
+        if title:
+            t = Task.objects.create(
+                title=title, client=client, manager=client.manager or request.user,
+                due_date=form.cleaned_data.get("task_date"), created_by=request.user,
+            )
+            log_history(client, ClientHistory.Kind.TASK, f"Задача: {t.title}", request.user)
         flash.success(request, "Клиент создан")
         return redirect(client)
-    return render(request, "crm/client_form.html", {"form": form, "title": "Новый клиент"})
+    return render(request, "crm/client_form.html", {"form": form, "title": "Новая сделка"})
 
 
 @login_required
@@ -472,6 +463,55 @@ def client_whatsapp(request, pk):
     return HttpResponseRedirect(url)
 
 
+# Поля, которые можно редактировать прямо на месте (клик → курсор → ввод), как в Excel.
+INLINE_EDITABLE_FIELDS = {"full_name", "phone", "looking_for", "what_has", "comment"}
+
+
+@login_required
+@require_POST
+def client_inline_update(request, pk):
+    """Сохранить одно поле клиента без открытия карточки (Канбан/Список)."""
+    client = get_object_or_404(clients_for(request.user), pk=pk)
+    ensure_client_access(request.user, client)
+    field = request.POST.get("field", "")
+    value = request.POST.get("value", "").strip()
+    if field not in INLINE_EDITABLE_FIELDS:
+        return HttpResponseBadRequest("bad field")
+    if field == "full_name" and not value:
+        return JsonResponse({"ok": False, "error": "Имя не может быть пустым"}, status=400)
+    old = getattr(client, field)
+    if str(old or "") == value:
+        return JsonResponse({"ok": True, "value": value, "changed": False})
+    setattr(client, field, value)
+    client.save(update_fields=[field, "updated_at"])
+    labels = {"full_name": "ФИО", "phone": "Телефон", "looking_for": "Что ищет",
+              "what_has": "Что есть", "comment": "Комментарий"}
+    log_history(client, ClientHistory.Kind.FIELD, f"{labels.get(field, field)} изменено", request.user)
+    return JsonResponse({"ok": True, "value": value, "changed": True})
+
+
+@login_required
+@require_POST
+def client_quick_create(request):
+    """Быстрое добавление заявки/сделки прямо из Канбана — минимум полей."""
+    stage = get_object_or_404(Stage, pk=request.POST.get("stage"))
+    full_name = request.POST.get("full_name", "").strip() or "Без имени"
+    phone = request.POST.get("phone", "").strip()
+    manager = request.user if not request.user.can_see_all_clients else None
+    client = Client.objects.create(
+        full_name=full_name, phone=phone, stage=stage, manager=manager,
+        first_contact_date=timezone.localdate(), created_by=request.user,
+    )
+    log_history(client, ClientHistory.Kind.CREATED, "Быстро создан в Канбане", request.user)
+    return JsonResponse({
+        "ok": True,
+        "client": {
+            "id": client.id, "full_name": client.full_name, "phone": client.phone,
+            "url": client.get_absolute_url(), "stage_id": stage.id,
+        },
+    })
+
+
 # --------------------------------------------------------------------------- #
 #  Канбан
 # --------------------------------------------------------------------------- #
@@ -495,7 +535,8 @@ def kanban(request):
     columns = [{"stage": s, "clients": by_stage.get(s.id, [])} for s in all_stages]
     ctx = {
         "columns": columns,
-        "managers": User.objects.filter(is_active=True).order_by("first_name"),
+        "stages": all_stages,
+        "managers": User.objects.filter(is_active=True, role="manager").order_by("first_name"),
         "current": request.GET,
         "can_move": True,
     }
@@ -569,7 +610,7 @@ def task_list(request):
         "tasks": view_qs.select_related("client", "manager", "client__stage"),
         "tab": tab,
         "counts": counts,
-        "managers": User.objects.filter(is_active=True).order_by("first_name"),
+        "managers": User.objects.filter(is_active=True, role="manager").order_by("first_name"),
         "stages": Stage.objects.filter(is_active=True),
         "current": request.GET,
         "filter_query": "&".join(extra),
@@ -870,7 +911,7 @@ def import_map(request):
         "sheet": sheet,
         "sheet_idx": sheet_idx,
         "target_fields": excel_import.TARGET_FIELDS,
-        "managers": User.objects.filter(is_active=True).order_by("first_name"),
+        "managers": User.objects.filter(is_active=True, role="manager").order_by("first_name"),
         "columns": list(enumerate(sheet["headers"])),
     }
     return render(request, "crm/import_map.html", ctx)

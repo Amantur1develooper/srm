@@ -1,5 +1,5 @@
 {% extends "crm/base.html" %}
-{% block title %}{{ client.full_name }} — Webordo SRM{% endblock %}
+{% block title %}{{ client.full_name }} — Webordo CRM{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
@@ -39,12 +39,10 @@
       <div class="card-b">
         <dl class="dl">
           <dt>Телефон</dt><dd class="mono">{{ client.phone|default:"—" }}</dd>
-          <dt>WhatsApp</dt><dd class="mono">{{ client.whatsapp_phone|default:client.phone|default:"—" }}</dd>
           <dt>Дата обращения</dt><dd>{{ client.first_contact_date|date:"d.m.Y"|default:"—" }}</dd>
           <dt>Менеджер</dt><dd>{{ client.manager.display_name|default:"не назначен" }}</dd>
-          <dt>Источник</dt><dd>{{ client.get_source_display }}</dd>
-          <dt>Что ищет / что есть</dt><dd>{{ client.looking_for|linebreaksbr|default:"—" }}</dd>
-          <dt>Бюджет</dt><dd>{{ client.budget|default:"—" }}</dd>
+          <dt>Что ищет</dt><dd>{{ client.looking_for|linebreaksbr|default:"—" }}</dd>
+          <dt>Что есть</dt><dd>{{ client.what_has|linebreaksbr|default:"—" }}</dd>
           <dt>Комментарий</dt><dd>{{ client.comment|linebreaksbr|default:"—" }}</dd>
         </dl>
       </div>

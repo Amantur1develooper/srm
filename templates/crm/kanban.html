@@ -1,43 +1,70 @@
 {% extends "crm/base.html" %}
-{% block title %}Канбан — Webordo SRM{% endblock %}
+{% block title %}Канбан — Webordo CRM{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><h1>Канбан</h1><small>Перетащите карточку между стадиями</small></div>
+  <div><h1>Канбан</h1></div>
   <div class="actions">
+    <button type="button" class="btn tint" id="selectToggle">Выбрать</button>
     <form method="get" class="row">
-      <input class="field-input" style="max-width:180px" type="search" name="q" placeholder="Имя клиента" value="{{ current.q|default:'' }}">
-      <select class="field-input field-select" style="max-width:170px" name="manager" onchange="this.form.submit()">
+      <input class="field-input" style="max-width:160px" type="search" name="q" placeholder="Имя клиента" value="{{ current.q|default:'' }}">
+      <select class="field-input field-select" style="max-width:160px" name="manager" onchange="this.form.submit()">
         <option value="">Все менеджеры</option>
         {% for m in managers %}<option value="{{ m.id }}" {% if current.manager == m.id|stringformat:'s' %}selected{% endif %}>{{ m.display_name }}</option>{% endfor %}
       </select>
-      <button class="btn sm secondary">Фильтр</button>
     </form>
   </div>
 </div>
 
-<div class="kanban" data-kanban data-move-url="{% url 'kanban_move' %}">
-  {% for col in columns %}
-  <div class="kcol">
-    <div class="kcol-h">
-      <span class="stage-dot" style="background:{{ col.stage.color }}"></span>
-      {{ col.stage.name }}
-      <span class="count">{{ col.clients|length }}</span>
-    </div>
-    <div class="kcol-b" data-stage-id="{{ col.stage.id }}">
-      {% for c in col.clients %}
-      <div class="kcard" draggable="true" data-client-id="{{ c.id }}">
-        <div class="name"><a href="{{ c.get_absolute_url }}">{{ c.full_name }}</a></div>
-        <div class="meta">
-          {% if c.phone %}<span class="mono">📞 {{ c.phone }}</span>{% endif %}
-          {% if c.looking_for %}<span>{{ c.looking_for|truncatechars:48 }}</span>{% endif %}
-          {% if c.next_step %}<span>Шаг: <b>{{ c.next_step }}</b></span>{% endif %}
-          {% with t=c.next_task %}{% if t %}<span>Задача: <b>{{ t.due_date|date:"d.m"|default:"—" }}</b></span>{% endif %}{% endwith %}
-          {% if c.manager %}<span>Менеджер: <b>{{ c.manager.display_name }}</b></span>{% endif %}
-        </div>
-      </div>
-      {% endfor %}
-    </div>
+<form method="post" action="{% url 'client_bulk' %}" id="bulkForm">
+  {% csrf_token %}
+  <div class="bulkbar" data-bulkbar hidden>
+    <b><span data-bulk-count>0</span> выбрано</b>
+    <button type="button" class="btn ghost sm" data-select-all-btn>Все на доске</button>
+    <span class="sp" style="flex:1"></span>
+    <select class="field-input field-select" style="max-width:170px" name="stage">
+      <option value="">Стадия…</option>
+      {% for s in stages %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+    </select>
+    <button class="btn sm secondary" name="action" value="set_stage">Сменить у всех</button>
+    <button class="btn sm danger" name="action" value="delete" onclick="return confirm('Удалить выбранных клиентов без возможности восстановления?')">Удалить</button>
   </div>
-  {% endfor %}
-</div>
+
+  <div class="kanban" data-kanban data-move-url="{% url 'kanban_move' %}"
+       data-quick-url="{% url 'client_quick_create' %}"
+       data-inline-url="{% url 'client_inline_update' 0 %}">
+    {% for col in columns %}
+    <div class="kcol">
+      <div class="kcol-h">
+        <span class="stage-dot" style="background:{{ col.stage.color }}"></span>
+        {{ col.stage.name }}
+        <span class="count">{{ col.clients|length }}</span>
+        <button type="button" class="kadd" data-kadd data-stage-id="{{ col.stage.id }}" title="Быстро добавить">＋</button>
+      </div>
+      <form class="kquick" data-kquick data-stage-id="{{ col.stage.id }}" hidden>
+        <input class="field-input" name="full_name" placeholder="Имя" autocomplete="off" required>
+        <input class="field-input" name="phone" placeholder="Телефон" autocomplete="off" inputmode="tel">
+        <div class="row" style="gap:6px">
+          <button class="btn sm" type="submit">Добавить</button>
+          <button class="btn ghost sm" type="button" data-kquick-cancel>✕</button>
+        </div>
+      </form>
+      <div class="kcol-b" data-stage-id="{{ col.stage.id }}">
+        {% for c in col.clients %}
+        <div class="kcard" draggable="true" data-client-id="{{ c.id }}">
+          <span class="sel"><input type="checkbox" name="client_ids" value="{{ c.id }}"></span>
+          <div class="name kf" contenteditable data-field="full_name" data-client-id="{{ c.id }}">{{ c.full_name }}</div>
+          <div class="meta">
+            <span class="kf mono" contenteditable data-field="phone" data-client-id="{{ c.id }}" data-placeholder="телефон">{{ c.phone }}</span>
+            <span class="kf" contenteditable data-field="looking_for" data-client-id="{{ c.id }}" data-placeholder="что ищет">{{ c.looking_for }}</span>
+            {% with t=c.next_task %}{% if t %}<span>Задача: <b>{{ t.due_date|date:"d.m"|default:"—" }}</b></span>{% endif %}{% endwith %}
+            {% if c.manager %}<span>{{ c.manager.display_name }}</span>{% endif %}
+          </div>
+          <a class="kcard-open" href="{{ c.get_absolute_url }}" title="Открыть карточку" aria-label="Открыть">›</a>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</form>
 {% endblock %}

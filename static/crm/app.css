@@ -254,8 +254,15 @@ table.tbl tr:last-child td{border-bottom:0}
 }
 .kcol-h{padding:9px var(--sp-3);border-bottom:.5px solid var(--sep);display:flex;align-items:center;gap:7px;font-weight:600;font-size:13px}
 .kcol-h .count{margin-left:auto;background:var(--fill);border:0;border-radius:var(--r-pill);padding:1px 7px;font-size:11px;color:var(--muted);font-weight:600}
+.kadd{
+  width:20px;height:20px;border-radius:50%;border:0;background:var(--fill);color:var(--blue);
+  font-size:13px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;
+}
+.kadd:hover{background:var(--blue-tint)}
+.kquick{display:flex;flex-direction:column;gap:6px;padding:8px;border-bottom:.5px solid var(--sep);background:var(--surface)}
+.kquick .field-input{padding:7px 9px;font-size:13px}
 .kcol-b{padding:6px;overflow-y:auto;flex:1;min-height:60px}
-.kcard{background:var(--surface);border:0;border-radius:var(--r);padding:10px;margin-bottom:6px;box-shadow:var(--shadow-sm);cursor:grab;transition:box-shadow .15s,transform .08s}
+.kcard{background:var(--surface);border:0;border-radius:var(--r);padding:10px 26px 10px 10px;margin-bottom:6px;box-shadow:var(--shadow-sm);cursor:grab;transition:box-shadow .15s,transform .08s;position:relative}
 .kcard:hover{box-shadow:var(--shadow)}
 .kcard:active{transform:scale(.98);cursor:grabbing}
 .kcard.dragging{opacity:.35}
@@ -263,6 +270,25 @@ table.tbl tr:last-child td{border-bottom:0}
 .kcard .meta{font-size:11.5px;color:var(--muted);display:flex;flex-direction:column;gap:2px}
 .kcard .meta b{color:var(--text);font-weight:600}
 .kcol-b.drop-hint{background:var(--blue-tint);border-radius:var(--r)}
+
+/* поля прямого редактирования на карточке — клик → курсор → ввод, как в Excel */
+.kf{cursor:text;border-radius:4px;padding:1px 3px;margin:-1px -3px;outline-offset:0}
+.kf:hover{background:var(--fill-quat)}
+.kf:focus{background:var(--surface);box-shadow:0 0 0 2px var(--blue);outline:none;cursor:text}
+.kf:empty::before{content:attr(data-placeholder);color:var(--muted-2)}
+.kf.saving{opacity:.6}
+
+.kcard .sel{position:absolute;top:8px;left:8px;display:none;width:20px;height:20px;z-index:2}
+.kcard .sel input{width:18px;height:18px;accent-color:var(--blue)}
+body.selecting .kcard{padding-left:32px;cursor:default}
+body.selecting .kcard .sel{display:block}
+body.selecting .kcard .kcard-open{display:none}
+.kcard-open{
+  position:absolute;top:6px;right:4px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;
+  color:var(--muted-2);font-size:16px;font-weight:700;border-radius:6px;
+}
+.kcard-open:hover{background:var(--fill);color:var(--blue);opacity:1}
+.kcard:has(.sel input:checked){box-shadow:0 0 0 2px var(--blue);background:var(--blue-tint)}
 
 /* ---------- history / timeline ---------- */
 .timeline{list-style:none;margin:0;padding:0}
@@ -291,8 +317,14 @@ table.tbl tr:last-child td{border-bottom:0}
   font-weight:600;font-size:15px;color:#fff;letter-spacing:-0.02em;
 }
 .ios-row .body{flex:1;min-width:0}
-.ios-row .ttl{font-weight:600;font-size:15px;letter-spacing:-0.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ios-row .ttl{font-weight:600;font-size:14px;letter-spacing:-0.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ios-row .sub{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.ios-row .phone-copy{
+  font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text);
+  background:none;border:0;padding:0;font-family:inherit;cursor:pointer;letter-spacing:0;
+}
+.ios-row .phone-copy:hover{color:var(--blue)}
+.ios-row .phone-copy.copied{color:var(--green-d)}
 .ios-row .trail{display:flex;align-items:center;gap:9px;flex:0 0 auto;color:var(--muted);font-size:13px}
 .ios-row .chev{color:var(--muted-2);font-size:17px;font-weight:600;margin-left:2px}
 .ios-row .chev::before{content:"\203A"}
@@ -346,6 +378,9 @@ body.selecting .ios-row .trail .stage-select,body.selecting .ios-row .trail .wa-
   padding:10px var(--sp-4);margin-bottom:var(--sp-3);
   position:sticky;top:calc(var(--header-h) + 8px);z-index:15;
 }
+/* пока ничего не выделено — доступна только "Выбрать всё", остальные действия неактивны */
+.bulkbar.bulkbar-empty select,
+.bulkbar.bulkbar-empty button:not([data-select-all-btn]){opacity:.4;pointer-events:none}
 
 /* ---------- misc ---------- */
 .flash-wrap{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:100;display:flex;flex-direction:column;gap:8px;width:min(420px,calc(100vw - 28px))}

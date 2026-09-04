@@ -15,7 +15,8 @@ COLUMNS = [
     ("WhatsApp", lambda c: phone_display(c.whatsapp_phone or c.phone)),
     ("Дата обращения", lambda c: c.first_contact_date.strftime("%d.%m.%Y") if c.first_contact_date else ""),
     ("Стадия", lambda c: c.stage.name if c.stage_id else ""),
-    ("Что ищет / что есть", lambda c: c.looking_for),
+    ("Что ищет", lambda c: c.looking_for),
+    ("Что есть", lambda c: c.what_has),
     ("Бюджет", lambda c: c.budget),
     ("Следующий шаг", lambda c: c.next_step),
     ("Срок след. действия", lambda c: c.next_step_at.strftime("%d.%m.%Y %H:%M") if c.next_step_at else ""),
@@ -38,7 +39,7 @@ def export_clients(queryset) -> bytes:
     for client in queryset.select_related("stage", "manager"):
         ws.append([getter(client) for _, getter in COLUMNS])
 
-    widths = [24, 18, 16, 18, 15, 14, 40, 18, 24, 20, 18, 16, 40, 12]
+    widths = [24, 18, 16, 18, 15, 14, 30, 30, 18, 24, 20, 18, 16, 40, 12]
     for i, w in enumerate(widths, start=1):
         ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = w
     ws.freeze_panes = "A2"

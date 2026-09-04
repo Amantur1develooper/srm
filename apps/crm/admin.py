@@ -74,6 +74,6 @@ admin.site.register(BroadcastBatch)
 admin.site.register(Notification)
 admin.site.register(ImportLog)
 
-admin.site.site_header = "Webordo SRM"
-admin.site.site_title = "Webordo SRM"
+admin.site.site_header = "Webordo CRM"
+admin.site.site_title = "Webordo CRM"
 admin.site.index_title = "Администрирование"
