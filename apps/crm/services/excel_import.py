@@ -7,38 +7,42 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, field
-from datetime import datetime, time
 
-from django.utils import timezone
 from openpyxl import load_workbook
 
-from ..models import Client, ImportLog, Stage
-from ..utils import normalize_phone, parse_ru_date
+from ..models import Client, Funnel, ImportLog, Stage
+from ..utils import normalize_phone, parse_ru_date, parse_ru_datetime
 
 # Целевые поля CRM, на которые можно сопоставить колонку Excel
 TARGET_FIELDS = [
-    ("full_name", "Имя клиента (ФИО)"),
+    ("full_name", "Имя клиента (ФИО) / название сделки"),
     ("phone", "Телефон"),
     ("first_contact_date", "Дата обращения"),
     ("created_at", "Дата создания"),
     ("stage", "Стадия"),
     ("source", "База / источник"),
+    ("funnel", "Воронка"),
     ("looking_for", "Что ищет / описание"),
     ("next_step", "Следующее действие"),
     ("task_due", "Дата задачи"),
     ("comment", "Комментарий"),
     ("manager", "Менеджер"),
+    ("last_contact_at", "Дата последней коммуникации"),
+    ("last_activity_at", "Последняя активность"),
 ]
 
 # Ключевые слова в заголовке колонки -> целевое поле.
 # Порядок важен: более специфичные подсказки проверяются раньше общих ("дата обращения" раньше "дата").
 _HEADER_HINTS = {
-    "full_name": ["фио", "имя", "клиент", "name"],
+    "full_name": ["фио", "имя клиент", "название сделки", "клиент", "имя", "name"],
     "phone": ["контакт", "телефон", "phone", "номер", "whatsapp"],
     "created_at": ["дата создания", "создан"],
+    "last_contact_at": ["последней коммуникац", "коммуникац"],
+    "last_activity_at": ["последняя активност", "активност"],
     "first_contact_date": ["дата обращен", "обращение"],
     "stage": ["стади", "статус", "этап", "stage"],
     "source": ["база", "источник", "source"],
+    "funnel": ["воронка", "проект", "funnel"],
     "looking_for": ["что ищет", "что есть", "описание", "объект", "запрос"],
     "next_step": ["следующий шаг", "next", "действие"],
     "task_due": ["срок задачи", "срок", "задача", "дедлайн"],
@@ -73,6 +77,53 @@ def _match_source(value) -> str:
     if not value:
         return Client.Source.EXCEL
     return _SOURCE_SYNONYMS.get(str(value).strip().lower(), Client.Source.EXCEL)
+
+
+def _match_funnel(value, funnel_by_name: dict):
+    if not value:
+        return None
+    return funnel_by_name.get(str(value).strip().lower())
+
+
+# Выгрузки сделок из Bitrix24 часто кладут имя, источник и воронку в одну колонку:
+# «Zaira Junusova - instagram Эл Насип» или «Гость - instagram Эл Насип».
+_TITLE_SOURCE_WORDS = {
+    "instagram": Client.Source.INSTAGRAM,
+    "инстаграм": Client.Source.INSTAGRAM,
+    "whatsapp": Client.Source.WHATSAPP,
+    "ватсап": Client.Source.WHATSAPP,
+    "звонок": Client.Source.CALL,
+    "сайт": Client.Source.SITE,
+    "bitrix": Client.Source.BITRIX,
+    "битрикс": Client.Source.BITRIX,
+}
+
+
+def _parse_deal_title(title, funnels: list[Funnel]) -> tuple[str, str | None, Funnel | None]:
+    """«Имя - instagram Эл Насип» -> («Имя», Source.INSTAGRAM, <Funnel Эл Насип>).
+
+    Если ни источник, ни воронка внутри строки не распознаны (обычное «ФИО» без
+    примесей) — возвращает исходную строку без изменений и None/None.
+    """
+    text = str(title).strip()
+    low = text.lower()
+    cut_at = len(text)
+    found_source = None
+    for word, src in _TITLE_SOURCE_WORDS.items():
+        idx = low.find(word)
+        if idx != -1:
+            found_source = src
+            cut_at = min(cut_at, idx)
+    found_funnel = None
+    for f in funnels:
+        idx = low.find(f.name.lower())
+        if idx != -1:
+            found_funnel = f
+            cut_at = min(cut_at, idx)
+    if found_source is None and found_funnel is None:
+        return text, None, None
+    name = text[:cut_at].rstrip(" -–—").strip()
+    return (name or text), found_source, found_funnel
 
 
 @dataclass
@@ -245,6 +296,8 @@ def run_import(
 
     stage_cache = {st.slug: st for st in Stage.objects.all()}
     manager_cache: dict = {}
+    funnels = list(Funnel.objects.filter(is_active=True))
+    funnel_by_name = {f.name.lower(): f for f in funnels}
 
     mapping = {k: int(v) for k, v in mapping.items() if v not in (None, "", "-")}
 
@@ -275,6 +328,15 @@ def run_import(
             continue
         result.total += 1
 
+        # Bitrix и похожие выгрузки часто пишут «Имя - instagram Эл Насип» одной строкой —
+        # вычленяем чистое имя, источник и воронку, если явные колонки для них не заданы.
+        detected_source = None
+        detected_funnel = None
+        if name:
+            cleaned_name, detected_source, detected_funnel = _parse_deal_title(name, funnels)
+            if detected_source is not None or detected_funnel is not None:
+                name = cleaned_name
+
         norm = normalize_phone(phone_raw)
         phone_str = str(phone_raw).strip() if phone_raw not in (None, "") else ""
 
@@ -292,6 +354,11 @@ def run_import(
         manager = _get_or_create_manager(cell(row, "manager"), manager_cache) or default_manager
         stage = _match_stage(cell(row, "stage"), stage_cache, default_stage)
 
+        source_value = _match_source(cell(row, "source")) if mapping.get("source") else (
+            detected_source or Client.Source.EXCEL
+        )
+        funnel_value = _match_funnel(cell(row, "funnel"), funnel_by_name) if mapping.get("funnel") else detected_funnel
+
         fields = dict(
             full_name=name or "Без имени",
             phone=phone_str,
@@ -299,9 +366,12 @@ def run_import(
             looking_for=str(cell(row, "looking_for") or "").strip(),
             next_step=str(cell(row, "next_step") or "").strip()[:255],
             comment=str(cell(row, "comment") or "").strip(),
-            source=_match_source(cell(row, "source")),
+            source=source_value,
+            funnel=funnel_value,
+            last_contact_at=parse_ru_datetime(cell(row, "last_contact_at")),
+            last_activity_at=parse_ru_datetime(cell(row, "last_activity_at")),
         )
-        created_at_date = parse_ru_date(cell(row, "created_at"))
+        created_at_value = parse_ru_datetime(cell(row, "created_at"))
 
         existing = None
         if norm:
@@ -343,10 +413,9 @@ def run_import(
             client = Client.objects.create(
                 stage=stage, manager=manager, created_by=user, **fields
             )
-            if created_at_date:
+            if created_at_value:
                 # created_at — auto_now_add, обычным save() не переопределяется.
-                aware_dt = timezone.make_aware(datetime.combine(created_at_date, time.min))
-                Client.objects.filter(pk=client.pk).update(created_at=aware_dt)
+                Client.objects.filter(pk=client.pk).update(created_at=created_at_value)
             _history(client, "import", f"Импортирован из {filename}", user)
             if not name and result.noname_rows:
                 result.noname_rows[-1]["id"] = client.id

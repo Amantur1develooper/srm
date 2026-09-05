@@ -86,6 +86,72 @@ class ImportTests(TestCase):
         self.assertEqual(res2.skipped, 2)
 
 
+class BitrixImportTests(TestCase):
+    """Выгрузка сделок из Bitrix24: имя/источник/воронка одной колонкой,
+    даты создания/коммуникации/активности с точным временем."""
+
+    def setUp(self):
+        Stage.objects.create(name="Новая заявка", slug="new", order=1)
+        from .models import Funnel
+
+        self.funnel = Funnel.objects.create(name="Эл Насип", slug="el-nasip", order=1)
+
+    def _wb_bytes(self):
+        import datetime as dt
+        from io import BytesIO
+
+        from openpyxl import Workbook
+
+        wb = Workbook()
+        ws = wb.active
+        ws.append([
+            "Название сделки", "Контакт: Рабочий телефон", "Дата создания",
+            "Стадия сделки", "Дата последней коммуникации", "Последняя активность",
+        ])
+        ws.append([
+            "Zaira Junusova - instagram Эл Насип", 996776338175,
+            dt.datetime(2026, 6, 30, 2, 37, 4), "НОВАЯ ЗАЯВКА",
+            dt.datetime(2026, 6, 30, 2, 37, 5), dt.datetime(2026, 6, 30, 2, 37, 5),
+        ])
+        ws.append(["Сделка #35838", 996778323280, dt.datetime(2026, 6, 30, 11, 10, 4), "НОВАЯ ЗАЯВКА", None, None])
+        buf = BytesIO()
+        wb.save(buf)
+        return buf.getvalue()
+
+    def test_title_split_and_datetime_precision(self):
+        raw = self._wb_bytes()
+        previews = excel_import.preview_workbook(raw)
+        p = previews[0]
+        self.assertEqual(
+            p.suggested_mapping,
+            {"full_name": 0, "phone": 1, "created_at": 2, "stage": 3, "last_contact_at": 4, "last_activity_at": 5},
+        )
+
+        res = excel_import.run_import(
+            file_bytes=raw, filename="bitrix.xlsx", sheet_name=p.sheet_name,
+            header_row=p.header_row, mapping=p.suggested_mapping, duplicate_strategy="skip",
+        )
+        self.assertEqual(res.created, 2)
+
+        c = Client.objects.get(phone_normalized="996776338175")
+        self.assertEqual(c.full_name, "Zaira Junusova")
+        self.assertEqual(c.source, Client.Source.INSTAGRAM)
+        self.assertEqual(c.funnel_id, self.funnel.id)
+        from django.utils import timezone as dj_timezone
+
+        self.assertEqual(
+            dj_timezone.localtime(c.created_at).strftime("%Y-%m-%d %H:%M:%S"), "2026-06-30 02:37:04"
+        )
+        self.assertIsNotNone(c.last_contact_at)
+        self.assertIsNotNone(c.last_activity_at)
+
+        # «Сделка #35838» без маркеров источника/воронки — имя не трогаем, источник по умолчанию
+        c2 = Client.objects.get(phone_normalized="996778323280")
+        self.assertEqual(c2.full_name, "Сделка #35838")
+        self.assertEqual(c2.source, Client.Source.EXCEL)
+        self.assertIsNone(c2.funnel_id)
+
+
 class AccessTests(TestCase):
     def setUp(self):
         self.stage = Stage.objects.create(name="Новая", slug="new", order=1)

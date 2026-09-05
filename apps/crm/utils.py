@@ -153,3 +153,29 @@ def datetime_now_year() -> int:
     from django.utils import timezone
 
     return timezone.localdate().year
+
+
+def parse_ru_datetime(value):
+    """Как parse_ru_date, но сохраняет время суток, если оно было (выгрузки Bitrix
+    отдают datetime целиком — «30.06.2026 11:10:04»). Возвращает aware datetime или None.
+    """
+    import datetime as dt
+
+    from django.utils import timezone
+
+    if value in (None, ""):
+        return None
+    if isinstance(value, dt.datetime):
+        return timezone.make_aware(value) if timezone.is_naive(value) else value
+    if isinstance(value, dt.date):
+        return timezone.make_aware(dt.datetime.combine(value, dt.time.min))
+    s = str(value).strip()
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%d.%m.%Y %H:%M:%S", "%d.%m.%Y %H:%M", "%d.%m.%Y"):
+        try:
+            return timezone.make_aware(dt.datetime.strptime(s, fmt))
+        except ValueError:
+            pass
+    d = parse_ru_date(value)
+    if d:
+        return timezone.make_aware(dt.datetime.combine(d, dt.time.min))
+    return None

@@ -139,6 +139,10 @@ class Client(models.Model):
     comment = models.TextField("Комментарий", blank=True)
     lost_reason = models.CharField("Причина проигрыша", max_length=255, blank=True)
 
+    # Приходят из выгрузок Bitrix24 при импорте — своей логики их не трогает.
+    last_contact_at = models.DateTimeField("Дата последней коммуникации", null=True, blank=True)
+    last_activity_at = models.DateTimeField("Последняя активность", null=True, blank=True)
+
     next_step = models.CharField("Следующий шаг", max_length=255, blank=True)
     next_step_at = models.DateTimeField("Срок следующего действия", null=True, blank=True)
 
