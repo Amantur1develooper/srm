@@ -1,6 +1,7 @@
 {% comment %}
-Строка клиента для «Списка» и «Главного». Ожидает в контексте: c (Client), stages (для смены стадии).
-Приоритет: телефон → что ищет → что есть → что делать (задача). Имя — вторично.
+Строка клиента для «Списка» и «Главного». Ожидает в контексте: c (Client), stages.
+Всё упаковано влево, без растянутого пространства: телефон → ищет/есть →
+воронка · источник · менеджер → задача, затем стадия и WhatsApp вплотную.
 {% endcomment %}
 <div class="ios-row tap" data-row data-select-row data-href="{{ c.get_absolute_url }}">
   <span class="sel"><input type="checkbox" name="client_ids" value="{{ c.id }}"></span>
@@ -10,23 +11,28 @@
       {% if c.phone %}<button type="button" class="phone-copy" data-copy="{{ c.phone }}" onclick="event.stopPropagation()" title="Скопировать номер">{{ c.phone }}</button>{% else %}<span class="muted">без телефона</span>{% endif %}
     </span>
     <span class="sub">
-      {% if c.looking_for %}Ищет: {{ c.looking_for|truncatechars:24 }}{% endif %}
-      {% if c.what_has %}{% if c.looking_for %} · {% endif %}Есть: {{ c.what_has|truncatechars:24 }}{% endif %}
+      {% if c.looking_for %}Ищет: {{ c.looking_for|truncatechars:22 }}{% endif %}
+      {% if c.what_has %}{% if c.looking_for %} · {% endif %}Есть: {{ c.what_has|truncatechars:22 }}{% endif %}
       {% if not c.looking_for and not c.what_has %}—{% endif %}
+    </span>
+    <span class="sub rowmeta">
+      {% if c.funnel %}{{ c.funnel.name }}{% endif %}
+      {% if c.source and c.source != 'unknown' %}{% if c.funnel %} · {% endif %}{{ c.get_source_display }}{% endif %}
+      {% if c.manager %}{% if c.funnel or c.source and c.source != 'unknown' %} · {% endif %}{{ c.manager.display_name }}{% endif %}
+      {% if not c.funnel and not c.manager and c.source == 'unknown' %}<span class="muted-2">—</span>{% endif %}
     </span>
     {% with t=c.open_tasks.0 %}
     {% if t %}
       <span class="sub"><span class="task-dot {{ t.due_tone }}"></span>
         <span class="{{ t.due_tone }}">{{ t.due_human }}{% if t.due_time %}, {{ t.due_time|time:"H:i" }}{% endif %}</span>
-        — {{ t.title|truncatechars:28 }}{% if c.open_tasks|length > 1 %} <span class="task-more">+{{ c.open_tasks|length|add:"-1" }}</span>{% endif %}
+        — {{ t.title|truncatechars:26 }}{% if c.open_tasks|length > 1 %} <span class="task-more">+{{ c.open_tasks|length|add:"-1" }}</span>{% endif %}
       </span>
     {% else %}
-      <span class="sub muted">
-        {% if c.comment %}{{ c.comment|truncatechars:34 }}{% else %}{{ c.full_name }}{% endif %}
-        {% if c.manager %} · {{ c.manager.display_name }}{% endif %}
+      <span class="sub">
+        <button type="button" class="task-add" data-add-task data-url="{% url 'client_add_task' c.id %}"
+                data-client="{{ c.full_name }}" onclick="event.stopPropagation()">＋ задача</button>
+        {% if c.comment %}<span class="muted"> · {{ c.comment|truncatechars:28 }}</span>{% endif %}
       </span>
-      <button type="button" class="task-add" data-add-task data-url="{% url 'client_add_task' c.id %}"
-              data-client="{{ c.full_name }}" onclick="event.stopPropagation()">＋ задача</button>
     {% endif %}
     {% endwith %}
   </span>
@@ -44,5 +50,4 @@
     </div>
     {% if c.wa_number %}<a class="wa-mini" target="_blank" href="{% url 'client_whatsapp' c.id %}" onclick="event.stopPropagation()" title="WhatsApp" aria-label="WhatsApp">✆</a>{% endif %}
   </span>
-  <span class="chev"></span>
 </div>

@@ -132,7 +132,7 @@ def client_list(request):
     ).order_by("due_date", "due_time")
     qs = qs.prefetch_related(Prefetch("tasks", queryset=open_tasks_qs, to_attr="open_tasks"))
 
-    paginator = Paginator(qs, 40)
+    paginator = Paginator(qs, 100)
     page = paginator.get_page(request.GET.get("page"))
 
     ctx = {

@@ -9,7 +9,7 @@ Excel и мобильная версия.
 
 ## Стек
 
-- Python 3.13, Django 5.1
+- Python 3.12–3.14, Django 5.2 (LTS)
 - PostgreSQL 16 (`psycopg` 3)
 - Серверный рендеринг (Django templates) + ванильный JS
 - `openpyxl` — импорт/экспорт Excel

@@ -1,8 +1,11 @@
-# Webordo SRM — зависимости (Python 3.13)
+# Webordo SRM — зависимости (Python 3.12–3.14)
 # Установка:  pip install -r requirements.txt
 
 # --- Framework ---
-Django==5.1.15
+# 5.2 — LTS-ветка, официально поддерживает Python 3.14 (5.1 — нет, падает на admin
+# из-за copy(super()) в template/context.py на 3.14). Апгрейд проверен: check + все
+# тесты проходят без предупреждений.
+Django==5.2.17
 asgiref==3.12.1
 sqlparse==0.6.0
 
