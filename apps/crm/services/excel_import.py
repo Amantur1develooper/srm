@@ -7,7 +7,9 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, field
+from datetime import datetime, time
 
+from django.utils import timezone
 from openpyxl import load_workbook
 
 from ..models import Client, ImportLog, Stage
@@ -18,7 +20,9 @@ TARGET_FIELDS = [
     ("full_name", "Имя клиента (ФИО)"),
     ("phone", "Телефон"),
     ("first_contact_date", "Дата обращения"),
+    ("created_at", "Дата создания"),
     ("stage", "Стадия"),
+    ("source", "База / источник"),
     ("looking_for", "Что ищет / описание"),
     ("next_step", "Следующее действие"),
     ("task_due", "Дата задачи"),
@@ -26,12 +30,15 @@ TARGET_FIELDS = [
     ("manager", "Менеджер"),
 ]
 
-# Ключевые слова в заголовке колонки -> целевое поле
+# Ключевые слова в заголовке колонки -> целевое поле.
+# Порядок важен: более специфичные подсказки проверяются раньше общих ("дата обращения" раньше "дата").
 _HEADER_HINTS = {
     "full_name": ["фио", "имя", "клиент", "name"],
     "phone": ["контакт", "телефон", "phone", "номер", "whatsapp"],
-    "first_contact_date": ["дата обращен", "обращение", "дата"],
+    "created_at": ["дата создания", "создан"],
+    "first_contact_date": ["дата обращен", "обращение"],
     "stage": ["стади", "статус", "этап", "stage"],
+    "source": ["база", "источник", "source"],
     "looking_for": ["что ищет", "что есть", "описание", "объект", "запрос"],
     "next_step": ["следующий шаг", "next", "действие"],
     "task_due": ["срок задачи", "срок", "задача", "дедлайн"],
@@ -49,6 +56,23 @@ _STAGE_SYNONYMS = {
     "сделка": "won", "успех": "won", "успешно": "won",
     "проигранные": "lost", "проигранный": "lost", "проигран": "lost", "отказ": "lost",
 }
+
+_SOURCE_SYNONYMS = {
+    "bitrix": "bitrix", "битрикс": "bitrix", "база bitrix": "bitrix", "база": "bitrix",
+    "вручную": "manual", "manual": "manual",
+    "excel": "excel", "импорт": "excel",
+    "whatsapp": "whatsapp", "ватсап": "whatsapp",
+    "звонок": "call", "call": "call",
+    "instagram": "instagram", "инстаграм": "instagram",
+    "рекомендация": "referral", "сарафан": "referral",
+    "сайт": "site", "site": "site",
+}
+
+
+def _match_source(value) -> str:
+    if not value:
+        return Client.Source.EXCEL
+    return _SOURCE_SYNONYMS.get(str(value).strip().lower(), Client.Source.EXCEL)
 
 
 @dataclass
@@ -275,8 +299,9 @@ def run_import(
             looking_for=str(cell(row, "looking_for") or "").strip(),
             next_step=str(cell(row, "next_step") or "").strip()[:255],
             comment=str(cell(row, "comment") or "").strip(),
-            source=Client.Source.EXCEL,
+            source=_match_source(cell(row, "source")),
         )
+        created_at_date = parse_ru_date(cell(row, "created_at"))
 
         existing = None
         if norm:
@@ -318,6 +343,10 @@ def run_import(
             client = Client.objects.create(
                 stage=stage, manager=manager, created_by=user, **fields
             )
+            if created_at_date:
+                # created_at — auto_now_add, обычным save() не переопределяется.
+                aware_dt = timezone.make_aware(datetime.combine(created_at_date, time.min))
+                Client.objects.filter(pk=client.pk).update(created_at=aware_dt)
             _history(client, "import", f"Импортирован из {filename}", user)
             if not name and result.noname_rows:
                 result.noname_rows[-1]["id"] = client.id

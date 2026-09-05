@@ -31,12 +31,17 @@
     {% endwith %}
   </span>
   <span class="trail">
-    <select class="stage-select" data-stage-select data-url="{% url 'client_change_stage' c.id %}"
-            style="background:{{ c.stage.color }}" onclick="event.stopPropagation()" title="Сменить стадию">
-      {% for s in stages %}
-      <option value="{{ s.id }}" data-color="{{ s.color }}" data-lost="{% if s.is_lost %}1{% else %}0{% endif %}" {% if s.id == c.stage_id %}selected{% endif %}>{{ s.name }}</option>
-      {% endfor %}
-    </select>
+    <div class="hmenu" data-hmenu data-stage-hmenu data-url="{% url 'client_change_stage' c.id %}" onclick="event.stopPropagation()">
+      <button type="button" class="hmenu-trigger stage-pill-btn" style="background:{{ c.stage.color }}">{{ c.stage.name }} ▾</button>
+      <div class="hmenu-pop">
+        {% for s in stages %}
+        <button type="button" class="stage-opt {% if s.id == c.stage_id %}current{% endif %}"
+                data-stage-id="{{ s.id }}" data-color="{{ s.color }}" data-name="{{ s.name }}" data-lost="{% if s.is_lost %}1{% else %}0{% endif %}">
+          <span class="stage-dot" style="background:{{ s.color }}"></span>{{ s.name }}
+        </button>
+        {% endfor %}
+      </div>
+    </div>
     {% if c.wa_number %}<a class="wa-mini" target="_blank" href="{% url 'client_whatsapp' c.id %}" onclick="event.stopPropagation()" title="WhatsApp" aria-label="WhatsApp">✆</a>{% endif %}
   </span>
   <span class="chev"></span>

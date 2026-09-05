@@ -23,29 +23,51 @@
   <input type="hidden" name="sort" value="{{ sort }}">
 </form>
 
-<div class="chips" style="margin-bottom:6px">
-  <a class="chip {% if not current.stage %}active{% endif %}" href="?{{ qs_no_stage }}">Все стадии</a>
-  {% for s in stages %}
-  <a class="chip {% if current.stage == s.slug %}active{% endif %}" href="?stage={{ s.slug }}{% if qs_no_stage %}&{{ qs_no_stage }}{% endif %}">{{ s.name }} · {{ stage_counts|get:s.slug|default:0 }}</a>
-  {% endfor %}
-</div>
-<div class="chips" style="margin-bottom:6px">
-  <a class="chip {% if not current.manager %}active{% endif %}" href="?{{ qs_no_manager }}">Все менеджеры</a>
-  {% for m in managers %}
-  <a class="chip {% if current.manager == m.id|stringformat:'s' %}active{% endif %}" href="?manager={{ m.id }}{% if qs_no_manager %}&{{ qs_no_manager }}{% endif %}">{{ m.display_name }} · {{ manager_counts|get:m.id|default:0 }}</a>
-  {% endfor %}
-</div>
-<div class="chips" style="margin-bottom:6px">
-  <a class="chip {% if not current.funnel %}active{% endif %}" href="?{{ qs_no_funnel }}">Все воронки</a>
-  {% for f in funnels %}
-  <a class="chip {% if current.funnel == f.slug %}active{% endif %}" href="?funnel={{ f.slug }}{% if qs_no_funnel %}&{{ qs_no_funnel }}{% endif %}">{{ f.name }} · {{ funnel_counts|get:f.slug|default:0 }}</a>
-  {% endfor %}
-</div>
-<div class="chips" style="margin-bottom:var(--sp-3)">
-  <a class="chip {% if not current.source %}active{% endif %}" href="?{{ qs_no_source }}">Все источники</a>
-  {% for val, label in sources %}
-  <a class="chip {% if current.source == val %}active{% endif %}" href="?source={{ val }}{% if qs_no_source %}&{{ qs_no_source }}{% endif %}">{{ label }} · {{ source_counts|get:val|default:0 }}</a>
-  {% endfor %}
+<div class="row filter-row" style="margin-bottom:var(--sp-3)">
+  <div class="hmenu filter-hmenu" data-hmenu>
+    <button type="button" class="hmenu-trigger {% if current.stage %}active{% endif %}">
+      {% if current.stage %}{% for s in stages %}{% if s.slug == current.stage %}{{ s.name }}{% endif %}{% endfor %}{% else %}Стадия{% endif %} ▾
+    </button>
+    <div class="hmenu-pop">
+      <a class="{% if not current.stage %}active{% endif %}" href="?{{ qs_no_stage }}">Все стадии · {{ total }}</a>
+      {% for s in stages %}
+      <a class="{% if current.stage == s.slug %}active{% endif %}" href="?stage={{ s.slug }}{% if qs_no_stage %}&{{ qs_no_stage }}{% endif %}">{{ s.name }} · {{ stage_counts|get:s.slug|default:0 }}</a>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="hmenu filter-hmenu" data-hmenu>
+    <button type="button" class="hmenu-trigger {% if current.manager %}active{% endif %}">
+      {% if current.manager %}{% for m in managers %}{% if m.id|stringformat:'s' == current.manager %}{{ m.display_name }}{% endif %}{% endfor %}{% else %}Менеджер{% endif %} ▾
+    </button>
+    <div class="hmenu-pop">
+      <a class="{% if not current.manager %}active{% endif %}" href="?{{ qs_no_manager }}">Все менеджеры · {{ total }}</a>
+      {% for m in managers %}
+      <a class="{% if current.manager == m.id|stringformat:'s' %}active{% endif %}" href="?manager={{ m.id }}{% if qs_no_manager %}&{{ qs_no_manager }}{% endif %}">{{ m.display_name }} · {{ manager_counts|get:m.id|default:0 }}</a>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="hmenu filter-hmenu" data-hmenu>
+    <button type="button" class="hmenu-trigger {% if current.funnel %}active{% endif %}">
+      {% if current.funnel %}{% for f in funnels %}{% if f.slug == current.funnel %}{{ f.name }}{% endif %}{% endfor %}{% else %}Воронка{% endif %} ▾
+    </button>
+    <div class="hmenu-pop">
+      <a class="{% if not current.funnel %}active{% endif %}" href="?{{ qs_no_funnel }}">Все воронки · {{ total }}</a>
+      {% for f in funnels %}
+      <a class="{% if current.funnel == f.slug %}active{% endif %}" href="?funnel={{ f.slug }}{% if qs_no_funnel %}&{{ qs_no_funnel }}{% endif %}">{{ f.name }} · {{ funnel_counts|get:f.slug|default:0 }}</a>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="hmenu filter-hmenu" data-hmenu>
+    <button type="button" class="hmenu-trigger {% if current.source %}active{% endif %}">
+      {% if current.source %}{% for val, label in sources %}{% if val == current.source %}{{ label }}{% endif %}{% endfor %}{% else %}Источник{% endif %} ▾
+    </button>
+    <div class="hmenu-pop">
+      <a class="{% if not current.source %}active{% endif %}" href="?{{ qs_no_source }}">Все источники · {{ total }}</a>
+      {% for val, label in sources %}
+      <a class="{% if current.source == val %}active{% endif %}" href="?source={{ val }}{% if qs_no_source %}&{{ qs_no_source }}{% endif %}">{{ label }} · {{ source_counts|get:val|default:0 }}</a>
+      {% endfor %}
+    </div>
+  </div>
 </div>
 
 <form method="get" class="row" style="margin-bottom:var(--sp-4)">
@@ -99,22 +121,67 @@
     <b><span data-bulk-count>0</span> выбрано</b>
     <button type="button" class="btn ghost sm" data-select-all-btn>Все на странице</button>
     <span class="sp" style="flex:1"></span>
-    <select class="field-input field-select" style="max-width:150px" name="stage">
-      <option value="">Стадия…</option>
-      {% for s in stages %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
-    </select>
-    <button class="btn sm secondary" name="action" value="set_stage">Сменить</button>
-    {% if user.can_see_all_clients %}
-    <select class="field-input field-select" style="max-width:150px" name="manager">
-      <option value="">Менеджер…</option>
-      {% for m in managers %}<option value="{{ m.id }}">{{ m.display_name }}</option>{% endfor %}
-    </select>
-    <button class="btn sm secondary" name="action" value="set_manager">Назначить</button>
-    {% endif %}
-    <button type="button" class="btn sm" data-bulk-task data-url="{% url 'client_bulk_task' %}">＋ Задача всем</button>
-    <button class="btn sm secondary" name="action" value="export">Экспорт</button>
-    <button class="btn sm secondary" name="action" value="broadcast">📣 Рассылка</button>
-    <button class="btn sm danger" name="action" value="delete" onclick="return confirm('Удалить выбранных клиентов без возможности восстановления?')">Удалить</button>
+
+    <input type="hidden" name="stage" data-bulk-input="stage">
+    <input type="hidden" name="manager" data-bulk-input="manager">
+    <input type="hidden" name="funnel" data-bulk-input="funnel">
+    <input type="hidden" name="source" data-bulk-input="source">
+    <input type="hidden" name="lost_reason" data-bulk-input="lost_reason">
+    <input type="hidden" name="action" data-bulk-input="action">
+
+    <div class="hmenu" data-hmenu>
+      <button type="button" class="hmenu-trigger btn sm">Выбрать действие ▾</button>
+      <div class="hmenu-pop bulk-pop" data-bulk-pop>
+
+        <div data-bulk-panel="main">
+          <button type="button" class="bulk-cat" data-bulk-panel-open="stage">Сменить стадию</button>
+          {% if user.can_see_all_clients %}
+          <button type="button" class="bulk-cat" data-bulk-panel-open="manager">Сменить менеджера</button>
+          {% endif %}
+          <button type="button" class="bulk-cat" data-bulk-panel-open="funnel">Сменить воронку</button>
+          <button type="button" class="bulk-cat" data-bulk-panel-open="source">Сменить источник</button>
+          <button type="button" class="bulk-cat" data-bulk-task data-url="{% url 'client_bulk_task' %}">Задача всем</button>
+          <hr>
+          <button type="button" class="bulk-cat" data-bulk-submit="export">⬇︎ Экспорт выбранных</button>
+          <button type="button" class="bulk-cat" data-bulk-submit="broadcast">📣 Рассылка выбранным</button>
+          <button type="button" class="bulk-cat danger" data-bulk-submit="delete"
+                  data-bulk-confirm="Удалить выбранных клиентов без возможности восстановления?">🗑 Удалить</button>
+        </div>
+
+        <div data-bulk-panel="stage" hidden>
+          <button type="button" class="bulk-back" data-bulk-back>← Назад</button>
+          {% for s in stages %}
+          <button type="button" class="stage-opt" data-bulk-field="stage" data-bulk-value="{{ s.id }}" data-bulk-lost="{% if s.is_lost %}1{% else %}0{% endif %}">
+            <span class="stage-dot" style="background:{{ s.color }}"></span>{{ s.name }}
+          </button>
+          {% endfor %}
+        </div>
+
+        {% if user.can_see_all_clients %}
+        <div data-bulk-panel="manager" hidden>
+          <button type="button" class="bulk-back" data-bulk-back>← Назад</button>
+          {% for m in managers %}
+          <button type="button" class="stage-opt" data-bulk-field="manager" data-bulk-value="{{ m.id }}">{{ m.display_name }}</button>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <div data-bulk-panel="funnel" hidden>
+          <button type="button" class="bulk-back" data-bulk-back>← Назад</button>
+          {% for f in funnels %}
+          <button type="button" class="stage-opt" data-bulk-field="funnel" data-bulk-value="{{ f.id }}">{{ f.name }}</button>
+          {% endfor %}
+        </div>
+
+        <div data-bulk-panel="source" hidden>
+          <button type="button" class="bulk-back" data-bulk-back>← Назад</button>
+          {% for val, label in sources %}
+          <button type="button" class="stage-opt" data-bulk-field="source" data-bulk-value="{{ val }}">{{ label }}</button>
+          {% endfor %}
+        </div>
+
+      </div>
+    </div>
   </div>
 
   <div class="ios-list">

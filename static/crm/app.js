@@ -285,37 +285,6 @@
     });
   });
 
-  // ---- быстрая смена стадии прямо в списке/канбане/карточке ----
-  function submitStageChange(sel, opt, reason) {
-    const body = new URLSearchParams({ stage: sel.value });
-    if (reason) body.set("lost_reason", reason);
-    sel.classList.add("saving");
-    sel.classList.remove("saved");
-    fetch(sel.dataset.url, {
-      method: "POST",
-      headers: {
-        "X-Requested-With": "XMLHttpRequest",
-        "X-CSRFToken": csrf(),
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: body.toString(),
-    })
-      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
-      .then((d) => {
-        sel.classList.remove("saving");
-        sel.classList.add("saved");
-        if (d.color) sel.style.background = d.color;
-        else if (opt && opt.dataset.color) sel.style.background = opt.dataset.color;
-        sel.dataset.prev = sel.value;
-        setTimeout(() => sel.classList.remove("saved"), 1200);
-      })
-      .catch(() => {
-        sel.classList.remove("saving");
-        sel.value = sel.dataset.prev; // откат
-        alert("Не удалось сменить стадию");
-      });
-  }
-
   // модалка причины проигрыша — общая для Списка/Канбана/карточки клиента.
   // window.askLostReason(cb) вызывает cb(reasonString) при сохранении/пропуске,
   // либо cb(null), если отменили — вызывающий код сам решает, что делать с отменой.
@@ -363,23 +332,152 @@
     document.addEventListener("keydown", onKey);
   };
 
-  document.querySelectorAll("[data-stage-select]").forEach(function (sel) {
-    sel.dataset.prev = sel.value;
-    sel.addEventListener("click", function (e) {
-      e.stopPropagation(); // не выделять строку
+  // ---- универсальное всплывающее меню по наведению (как категории в интернет-магазине) ----
+  // Разметка: <div data-hmenu><button class="hmenu-trigger">...</button><div class="hmenu-pop">...</div></div>
+  // Наведение мышкой открывает сразу, клик — для тачскринов; клик вне — закрывает.
+  (function () {
+    function place(pop, anchor) {
+      const r = anchor.getBoundingClientRect();
+      pop.classList.add("show");
+      const pr = pop.getBoundingClientRect();
+      let top = r.bottom + 6;
+      if (top + pr.height > window.innerHeight - 8) top = Math.max(8, r.top - pr.height - 6);
+      let left = r.left;
+      if (left + pr.width > window.innerWidth - 8) left = window.innerWidth - pr.width - 8;
+      pop.style.top = top + "px";
+      pop.style.left = Math.max(8, left) + "px";
+    }
+    const timers = new WeakMap();
+    function openMenu(wrap, trigger, pop) {
+      clearTimeout(timers.get(pop));
+      document.querySelectorAll(".hmenu-pop.show").forEach((p) => { if (p !== pop) p.classList.remove("show"); });
+      place(pop, trigger);
+    }
+    function scheduleClose(pop) {
+      clearTimeout(timers.get(pop));
+      timers.set(pop, setTimeout(() => pop.classList.remove("show"), 180));
+    }
+    document.querySelectorAll("[data-hmenu]").forEach(function (wrap) {
+      const trigger = wrap.querySelector(".hmenu-trigger");
+      const pop = wrap.querySelector(".hmenu-pop");
+      if (!trigger || !pop) return;
+      wrap.addEventListener("mouseenter", () => openMenu(wrap, trigger, pop));
+      wrap.addEventListener("mouseleave", () => scheduleClose(pop));
+      pop.addEventListener("mouseenter", () => clearTimeout(timers.get(pop)));
+      pop.addEventListener("mouseleave", () => scheduleClose(pop));
+      trigger.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (pop.classList.contains("show")) pop.classList.remove("show");
+        else openMenu(wrap, trigger, pop);
+      });
     });
-    sel.addEventListener("change", function () {
-      const opt = sel.selectedOptions[0];
-      if (opt && opt.dataset.lost === "1") {
-        window.askLostReason(function (reason) {
-          if (reason === null) { sel.value = sel.dataset.prev; return; }
-          submitStageChange(sel, opt, reason);
-        });
-        return;
+    document.addEventListener("click", function (e) {
+      document.querySelectorAll("[data-hmenu]").forEach(function (wrap) {
+        if (!wrap.contains(e.target)) {
+          const pop = wrap.querySelector(".hmenu-pop");
+          if (pop) pop.classList.remove("show");
+        }
+      });
+    });
+    window.addEventListener("scroll", function () {
+      document.querySelectorAll(".hmenu-pop.show").forEach((p) => p.classList.remove("show"));
+    }, true);
+
+    // Смена стадии кликом по опции во всплывающем меню.
+    function submitStagePick(trigger, url, opt) {
+      function commit(reason) {
+        const body = new URLSearchParams({ stage: opt.dataset.stageId });
+        if (reason) body.set("lost_reason", reason);
+        trigger.classList.add("saving");
+        fetch(url, {
+          method: "POST",
+          headers: { "X-Requested-With": "XMLHttpRequest", "X-CSRFToken": csrf(), "Content-Type": "application/x-www-form-urlencoded" },
+          body: body.toString(),
+        })
+          .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+          .then((d) => {
+            trigger.classList.remove("saving");
+            trigger.style.background = d.color || opt.dataset.color;
+            trigger.textContent = (d.stage || opt.dataset.name) + " ▾";
+          })
+          .catch(() => { trigger.classList.remove("saving"); alert("Не удалось сменить стадию"); });
       }
-      submitStageChange(sel, opt, "");
+      if (opt.dataset.lost === "1") {
+        window.askLostReason(function (reason) { if (reason !== null) commit(reason); });
+      } else {
+        commit("");
+      }
+    }
+    document.querySelectorAll("[data-stage-hmenu]").forEach(function (wrap) {
+      const trigger = wrap.querySelector(".hmenu-trigger");
+      const pop = wrap.querySelector(".hmenu-pop");
+      const url = wrap.dataset.url;
+      wrap.querySelectorAll(".stage-opt").forEach(function (opt) {
+        opt.addEventListener("click", function (e) {
+          e.stopPropagation();
+          if (pop) pop.classList.remove("show");
+          submitStagePick(trigger, url, opt);
+        });
+      });
     });
-  });
+  })();
+
+  // ---- «Выбрать действие» в Списке: одна кнопка, наведение открывает список действий,
+  // клик по «Сменить стадию/менеджера/воронку/источник» показывает варианты в той же панели ----
+  (function () {
+    const bulkPop = document.querySelector("[data-bulk-pop]");
+    const bulkForm = document.getElementById("bulkForm");
+    if (!bulkPop || !bulkForm) return;
+
+    function setInput(name, value) {
+      const el = bulkForm.querySelector('[data-bulk-input="' + name + '"]');
+      if (el) el.value = value;
+    }
+    function showPanel(name) {
+      bulkPop.querySelectorAll("[data-bulk-panel]").forEach(function (p) {
+        p.hidden = p.dataset.bulkPanel !== name;
+      });
+    }
+    bulkPop.querySelectorAll("[data-bulk-panel-open]").forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        showPanel(btn.dataset.bulkPanelOpen);
+      });
+    });
+    bulkPop.querySelectorAll("[data-bulk-back]").forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        showPanel("main");
+      });
+    });
+    bulkPop.querySelectorAll("[data-bulk-submit]").forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        if (btn.dataset.bulkConfirm && !confirm(btn.dataset.bulkConfirm)) return;
+        setInput("action", btn.dataset.bulkSubmit);
+        bulkForm.submit();
+      });
+    });
+    bulkPop.querySelectorAll("[data-bulk-field]").forEach(function (opt) {
+      opt.addEventListener("click", function (e) {
+        e.stopPropagation();
+        const field = opt.dataset.bulkField;
+        const actionByField = { stage: "set_stage", manager: "set_manager", funnel: "set_funnel", source: "set_source" };
+        function go(reason) {
+          setInput(field, opt.dataset.bulkValue);
+          setInput("action", actionByField[field]);
+          setInput("lost_reason", reason || "");
+          bulkForm.submit();
+        }
+        if (opt.dataset.bulkLost === "1") {
+          window.askLostReason(function (reason) { if (reason !== null) go(reason); });
+        } else {
+          go("");
+        }
+      });
+    });
+  })();
 
   // ---- поповер со всеми активными задачами клиента (hover) ----
   (function () {

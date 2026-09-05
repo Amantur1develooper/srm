@@ -248,9 +248,21 @@ def client_bulk_action(request):
         flash.success(request, f"Менеджер изменён у {n} клиентов")
     elif action == "set_stage":
         stage = get_object_or_404(Stage, pk=request.POST.get("stage"))
+        reason = request.POST.get("lost_reason", "")
         for c in qs:
-            _do_stage_change(c, stage, request.user)
+            _do_stage_change(c, stage, request.user, lost_reason=reason)
         flash.success(request, f"Стадия изменена у {n} клиентов")
+    elif action == "set_funnel":
+        funnel = get_object_or_404(Funnel, pk=request.POST.get("funnel"))
+        qs.update(funnel=funnel)
+        flash.success(request, f"Воронка изменена у {n} клиентов")
+    elif action == "set_source":
+        source = request.POST.get("source")
+        if source not in Client.Source.values:
+            flash.error(request, "Неизвестный источник")
+            return redirect("client_list")
+        qs.update(source=source)
+        flash.success(request, f"Источник изменён у {n} клиентов")
     elif action == "export":
         data = excel_export.export_clients(qs)
         resp = HttpResponse(

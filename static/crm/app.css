@@ -185,19 +185,57 @@ a.stat:active{transform:scale(.98)}
 .badge.amber{background:var(--warning-soft);color:var(--orange-d)}
 .badge.indigo{background:var(--blue-tint);color:var(--blue)}
 .stage-pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:var(--r-pill);font-size:12px;font-weight:600;color:#fff}
-.stage-select{
-  appearance:none;-webkit-appearance:none;border:0;border-radius:var(--r-pill);
-  padding:5px 26px 5px 12px;font-size:12px;font-weight:600;color:#fff;cursor:pointer;font-family:inherit;
-  background-repeat:no-repeat;background-position:right 9px center;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='white' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-  max-width:170px;text-overflow:ellipsis;transition:transform .08s,filter .12s;
+/* ---------- всплывающее меню по наведению (стадии, фильтры — как категории в магазине) ---------- */
+.hmenu{position:relative;display:inline-flex}
+.hmenu-pop{
+  position:fixed;display:none;z-index:70;min-width:190px;max-width:280px;max-height:60vh;overflow-y:auto;
+  background:var(--elevated);border-radius:var(--r-lg);box-shadow:var(--shadow-pop);padding:6px;
 }
-.stage-select:hover{filter:brightness(1.06)}
-.stage-select:active{transform:scale(.96)}
-.stage-select:focus{outline:3px solid var(--blue-tint);outline-offset:2px}
-.stage-select option{background:var(--surface);color:var(--text);font-weight:500}
-.stage-select.saving{opacity:.55;pointer-events:none}
-.stage-select.saved{box-shadow:0 0 0 3px var(--success-soft)}
+.hmenu-pop.show{display:block;animation:sheet-in .14s ease}
+
+.stage-pill-btn{
+  border:0;border-radius:var(--r-pill);padding:5px 12px;font-size:12px;font-weight:600;color:#fff;
+  cursor:pointer;font-family:inherit;transition:transform .08s,filter .12s;
+  max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.stage-pill-btn:hover{filter:brightness(1.06)}
+.stage-pill-btn:active{transform:scale(.96)}
+.stage-pill-btn.saving{opacity:.55;pointer-events:none}
+.stage-opt{
+  display:flex;align-items:center;gap:9px;width:100%;text-align:left;border:0;background:none;
+  padding:9px 10px;border-radius:var(--r-sm);font-size:14px;color:var(--text);cursor:pointer;font-family:inherit;
+}
+.stage-opt:hover{background:var(--fill-quat)}
+.stage-opt.current{font-weight:700;background:var(--fill)}
+.stage-opt .stage-dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+
+/* фильтры-триггеры в Списке: hover раскрывает варианты, не занимая место рядом рядами чипов */
+.filter-hmenu .hmenu-trigger{
+  display:inline-flex;align-items:center;gap:4px;padding:7px 14px;border-radius:var(--r-pill);
+  background:var(--fill);font-size:13px;font-weight:500;color:var(--text);border:0;cursor:pointer;font-family:inherit;
+}
+.filter-hmenu .hmenu-trigger:hover{background:var(--fill-hover)}
+.filter-hmenu .hmenu-trigger.active{background:var(--text);color:var(--surface)}
+.hmenu-pop a{display:block;padding:9px 10px;border-radius:var(--r-sm);font-size:13.5px;font-weight:500;color:var(--text);white-space:nowrap}
+.hmenu-pop a:hover{background:var(--fill-quat);opacity:1;text-decoration:none}
+.hmenu-pop a.active{font-weight:700;background:var(--blue-tint);color:var(--blue)}
+
+/* «Выбрать действие» после группового выделения */
+.bulk-pop{min-width:220px}
+.bulk-cat{
+  display:block;width:100%;text-align:left;border:0;background:none;padding:9px 10px;border-radius:var(--r-sm);
+  font-size:13.5px;font-weight:500;color:var(--text);cursor:pointer;font-family:inherit;
+}
+.bulk-cat:hover{background:var(--fill-quat)}
+.bulk-cat.danger{color:var(--red-d)}
+.bulk-cat.danger:hover{background:var(--danger-soft)}
+.bulk-pop hr{border:0;border-top:.5px solid var(--sep);margin:5px 2px}
+.bulk-back{
+  display:flex;align-items:center;gap:4px;width:100%;text-align:left;border:0;background:none;
+  padding:8px 10px;margin-bottom:2px;border-radius:var(--r-sm);font-size:12.5px;font-weight:600;
+  color:var(--muted);cursor:pointer;font-family:inherit;border-bottom:.5px solid var(--sep);
+}
+.bulk-back:hover{background:var(--fill-quat);color:var(--text)}
 .stage-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
 
 /* ---------- segmented control (chips) ---------- */

@@ -87,12 +87,12 @@ class Command(BaseCommand):
         specs = [
             ("admin", "Администратор", "", "admin", True, True),
             ("head", "Руководитель", "Отдела продаж", "head", False, False),
-            ("ajnisa", "Айниса", "", "manager", False, False),
-            ("minaim", "Минаим", "", "manager", False, False),
+            ("azamat", "Азамат", "", "manager", False, False),
+            ("kuba", "Куба", "", "manager", False, False),
             ("minura", "Минура", "", "manager", False, False),
             ("ajbek", "Айбек", "", "manager", False, False),
-            ("kuba", "Куба", "", "manager", False, False),
-            ("aman", "Аман", "", "manager", False, False),
+            ("minajym", "Минайым", "", "manager", False, False),
+            ("ajnisa", "Айниса", "", "manager", False, False),
         ]
         for username, first, last, role, is_super, is_staff in specs:
             u, created = User.objects.get_or_create(

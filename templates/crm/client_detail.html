@@ -27,12 +27,17 @@
     <!-- смена стадии -->
     <div class="card pad row">
       <b>Стадия:</b>
-      <select class="stage-select" data-stage-select data-url="{% url 'client_change_stage' client.id %}"
-              style="background:{{ client.stage.color }};max-width:220px">
-        {% for s in stages %}
-        <option value="{{ s.id }}" data-color="{{ s.color }}" data-lost="{% if s.is_lost %}1{% else %}0{% endif %}" {% if s.id == client.stage_id %}selected{% endif %}>{{ s.name }}</option>
-        {% endfor %}
-      </select>
+      <div class="hmenu" data-hmenu data-stage-hmenu data-url="{% url 'client_change_stage' client.id %}">
+        <button type="button" class="hmenu-trigger stage-pill-btn" style="background:{{ client.stage.color }}">{{ client.stage.name }} ▾</button>
+        <div class="hmenu-pop">
+          {% for s in stages %}
+          <button type="button" class="stage-opt {% if s.id == client.stage_id %}current{% endif %}"
+                  data-stage-id="{{ s.id }}" data-color="{{ s.color }}" data-name="{{ s.name }}" data-lost="{% if s.is_lost %}1{% else %}0{% endif %}">
+            <span class="stage-dot" style="background:{{ s.color }}"></span>{{ s.name }}
+          </button>
+          {% endfor %}
+        </div>
+      </div>
       {% if client.lost_reason %}<span class="badge red">Причина: {{ client.lost_reason }}</span>{% endif %}
       <span class="sp" style="flex:1"></span>
       {% if client.next_step %}<span class="muted">Следующий шаг: <b>{{ client.next_step }}</b>{% if client.next_step_at %} — {{ client.next_step_at|date:"d.m.Y H:i" }}{% endif %}</span>{% endif %}
