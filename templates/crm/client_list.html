@@ -1,4 +1,5 @@
 {% extends "crm/base.html" %}
+{% load crm_extras %}
 {% block title %}Список — Webordo CRM{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -8,15 +9,10 @@
       <button type="button" class="btn tint" id="selectToggle">Выбрать</button>
       <button type="button" class="btn tint" data-select-all-now>Выбрать все</button>
     </div>
-    <details class="menu">
-      <summary class="btn secondary">⋯</summary>
-      <div class="menu-pop">
-        <a href="{% url 'client_export' %}?{{ querystring }}">⬇︎ Экспорт в Excel</a>
-        {% if user.can_manage_settings or user.is_head_role %}
-        <a href="{% url 'import_upload' %}">📥 Импорт из Excel</a>
-        {% endif %}
-      </div>
-    </details>
+    <a href="{% url 'client_export' %}?{{ querystring }}" class="btn secondary">⬇︎ Экспорт</a>
+    {% if user.can_manage_settings or user.is_head_role %}
+    <a href="{% url 'import_upload' %}" class="btn secondary">📥 Импорт</a>
+    {% endif %}
     <a href="{% url 'client_create' %}" class="btn">＋</a>
   </div>
 </div>
@@ -25,27 +21,73 @@
   <input class="field-input" type="search" name="q" placeholder="Поиск: имя, телефон, объект…"
          value="{{ current.q|default:'' }}" onsearch="this.form.submit()">
   <input type="hidden" name="sort" value="{{ sort }}">
-  <details class="filters"{% if current.stage or current.manager or current.has_task or current.overdue_task or current.has_phone or current.date_from or current.date_to %} open{% endif %}>
-    <summary>Фильтры</summary>
+</form>
+
+<div class="chips" style="margin-bottom:6px">
+  <a class="chip {% if not current.stage %}active{% endif %}" href="?{{ qs_no_stage }}">Все стадии</a>
+  {% for s in stages %}
+  <a class="chip {% if current.stage == s.slug %}active{% endif %}" href="?stage={{ s.slug }}{% if qs_no_stage %}&{{ qs_no_stage }}{% endif %}">{{ s.name }} · {{ stage_counts|get:s.slug|default:0 }}</a>
+  {% endfor %}
+</div>
+<div class="chips" style="margin-bottom:6px">
+  <a class="chip {% if not current.manager %}active{% endif %}" href="?{{ qs_no_manager }}">Все менеджеры</a>
+  {% for m in managers %}
+  <a class="chip {% if current.manager == m.id|stringformat:'s' %}active{% endif %}" href="?manager={{ m.id }}{% if qs_no_manager %}&{{ qs_no_manager }}{% endif %}">{{ m.display_name }} · {{ manager_counts|get:m.id|default:0 }}</a>
+  {% endfor %}
+</div>
+<div class="chips" style="margin-bottom:6px">
+  <a class="chip {% if not current.funnel %}active{% endif %}" href="?{{ qs_no_funnel }}">Все воронки</a>
+  {% for f in funnels %}
+  <a class="chip {% if current.funnel == f.slug %}active{% endif %}" href="?funnel={{ f.slug }}{% if qs_no_funnel %}&{{ qs_no_funnel }}{% endif %}">{{ f.name }} · {{ funnel_counts|get:f.slug|default:0 }}</a>
+  {% endfor %}
+</div>
+<div class="chips" style="margin-bottom:var(--sp-3)">
+  <a class="chip {% if not current.source %}active{% endif %}" href="?{{ qs_no_source }}">Все источники</a>
+  {% for val, label in sources %}
+  <a class="chip {% if current.source == val %}active{% endif %}" href="?source={{ val }}{% if qs_no_source %}&{{ qs_no_source }}{% endif %}">{{ label }} · {{ source_counts|get:val|default:0 }}</a>
+  {% endfor %}
+</div>
+
+<form method="get" class="row" style="margin-bottom:var(--sp-4)">
+  <input type="hidden" name="q" value="{{ current.q|default:'' }}">
+  <input type="hidden" name="stage" value="{{ current.stage|default:'' }}">
+  <input type="hidden" name="manager" value="{{ current.manager|default:'' }}">
+  <input type="hidden" name="funnel" value="{{ current.funnel|default:'' }}">
+  <input type="hidden" name="source" value="{{ current.source|default:'' }}">
+  <input type="hidden" name="sort" value="{{ sort }}">
+
+  <details class="menu"{% if current.date_from or current.date_to or current.created_from or current.created_to %} open{% endif %}>
+    <summary class="btn secondary sm">📅 Даты{% if current.date_from or current.date_to or current.created_from or current.created_to %} •{% endif %}</summary>
+    <div class="menu-pop stack" style="min-width:260px;padding:var(--sp-3)">
+      <div class="form-row">
+        <label>Дата обращения</label>
+        <div class="row" style="gap:6px;flex-wrap:nowrap">
+          <input class="field-input" type="date" name="date_from" value="{{ current.date_from|default:'' }}">
+          <span class="muted">—</span>
+          <input class="field-input" type="date" name="date_to" value="{{ current.date_to|default:'' }}">
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Дата создания в CRM</label>
+        <div class="row" style="gap:6px;flex-wrap:nowrap">
+          <input class="field-input" type="date" name="created_from" value="{{ current.created_from|default:'' }}">
+          <span class="muted">—</span>
+          <input class="field-input" type="date" name="created_to" value="{{ current.created_to|default:'' }}">
+        </div>
+      </div>
+      <button class="btn sm" type="submit">Применить</button>
+    </div>
+  </details>
+
+  <details class="filters"{% if current.has_task or current.overdue_task or current.has_phone %} open{% endif %}>
+    <summary>Ещё</summary>
     <div class="filters-grid">
-      <select class="field-input field-select" name="stage">
-        <option value="">Все стадии</option>
-        {% for s in stages %}<option value="{{ s.slug }}" {% if current.stage == s.slug %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
-      </select>
-      <select class="field-input field-select" name="manager">
-        <option value="">Все менеджеры</option>
-        {% for m in managers %}<option value="{{ m.id }}" {% if current.manager == m.id|stringformat:'s' %}selected{% endif %}>{{ m.display_name }}</option>{% endfor %}
-      </select>
       <label class="check-inline"><input class="field-check" type="checkbox" name="has_task" value="1" {% if current.has_task == '1' %}checked{% endif %}> Есть задача</label>
       <label class="check-inline"><input class="field-check" type="checkbox" name="overdue_task" value="1" {% if current.overdue_task == '1' %}checked{% endif %}> Просроченная задача</label>
       <label class="check-inline"><input class="field-check" type="checkbox" name="has_phone" value="1" {% if current.has_phone == '1' %}checked{% endif %}> С телефоном</label>
-      <label class="check-inline" style="gap:8px">Обращение с
-        <input class="field-input" style="max-width:150px" type="date" name="date_from" value="{{ current.date_from|default:'' }}">
-        по <input class="field-input" style="max-width:150px" type="date" name="date_to" value="{{ current.date_to|default:'' }}">
-      </label>
       <div class="row">
         <button class="btn sm" type="submit">Применить</button>
-        <a href="{% url 'client_list' %}" class="btn ghost sm">Сбросить</a>
+        <a href="{% url 'client_list' %}" class="btn ghost sm">Сбросить всё</a>
       </div>
     </div>
   </details>

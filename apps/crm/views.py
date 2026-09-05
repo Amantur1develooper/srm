@@ -44,6 +44,7 @@ from .models import (
     BroadcastBatch,
     Client,
     ClientHistory,
+    Funnel,
     Message,
     MessageTemplate,
     Notification,
@@ -139,12 +140,26 @@ def client_list(request):
         "total": paginator.count,
         "stages": Stage.objects.filter(is_active=True),
         "managers": User.objects.filter(is_active=True, role="manager").order_by("first_name", "username"),
+        "funnels": Funnel.objects.filter(is_active=True),
+        "sources": Client.Source.choices,
         "templates": MessageTemplate.objects.filter(is_active=True),
         "current": request.GET,
         "sort": sort,
         "querystring": _querystring(request, exclude=["page"]),
+        "qs_no_stage": _querystring(request, exclude=["page", "stage"]),
+        "qs_no_manager": _querystring(request, exclude=["page", "manager"]),
+        "qs_no_funnel": _querystring(request, exclude=["page", "funnel"]),
+        "qs_no_source": _querystring(request, exclude=["page", "source"]),
+        "stage_counts": dict(_client_counts_by(clients_for(user), "stage__slug")),
+        "manager_counts": dict(_client_counts_by(clients_for(user), "manager_id")),
+        "funnel_counts": dict(_client_counts_by(clients_for(user), "funnel__slug")),
+        "source_counts": dict(_client_counts_by(clients_for(user), "source")),
     }
     return render(request, "crm/client_list.html", ctx)
+
+
+def _client_counts_by(qs, field):
+    return list(qs.values(field).annotate(n=Count("id")).values_list(field, "n"))
 
 
 def _apply_client_filters(request, qs, user):
@@ -164,10 +179,16 @@ def _apply_client_filters(request, qs, user):
         qs = qs.filter(manager_id=g["manager"])
     if g.get("source"):
         qs = qs.filter(source=g["source"])
+    if g.get("funnel"):
+        qs = qs.filter(funnel__slug=g["funnel"])
     if g.get("date_from"):
         qs = qs.filter(first_contact_date__gte=g["date_from"])
     if g.get("date_to"):
         qs = qs.filter(first_contact_date__lte=g["date_to"])
+    if g.get("created_from"):
+        qs = qs.filter(created_at__date__gte=g["created_from"])
+    if g.get("created_to"):
+        qs = qs.filter(created_at__date__lte=g["created_to"])
     if g.get("has_phone") == "1":
         qs = qs.exclude(phone_normalized="")
     if g.get("has_task") == "1":
@@ -244,6 +265,7 @@ def client_bulk_action(request):
         deleted = n
         qs.delete()
         flash.success(request, f"Удалено: {deleted}")
+        return redirect("client_list")  # реферер мог указывать на удалённого клиента
     else:
         flash.warning(request, "Неизвестное действие")
     return redirect(request.META.get("HTTP_REFERER", "client_list"))
@@ -316,7 +338,7 @@ def client_change_stage(request, pk):
     client = get_object_or_404(clients_for(request.user), pk=pk)
     ensure_client_access(request.user, client)
     stage = get_object_or_404(Stage, pk=request.POST.get("stage"))
-    _do_stage_change(client, stage, request.user)
+    _do_stage_change(client, stage, request.user, lost_reason=request.POST.get("lost_reason", ""))
     if request.headers.get("x-requested-with") == "XMLHttpRequest":
         return JsonResponse({
             "ok": True,
@@ -328,13 +350,20 @@ def client_change_stage(request, pk):
     return redirect(request.META.get("HTTP_REFERER") or client.get_absolute_url())
 
 
-def _do_stage_change(client, stage, user):
+def _do_stage_change(client, stage, user, lost_reason=""):
     if client.stage_id == stage.id:
         return
     old = client.stage.name
     client.stage = stage
-    client.save(update_fields=["stage", "updated_at"])
-    log_history(client, ClientHistory.Kind.STAGE, f"{old} → {stage.name}", user)
+    update_fields = ["stage", "updated_at"]
+    if stage.is_lost and lost_reason:
+        client.lost_reason = lost_reason[:255]
+        update_fields.append("lost_reason")
+    client.save(update_fields=update_fields)
+    history_text = f"{old} → {stage.name}"
+    if stage.is_lost and lost_reason:
+        history_text += f" (причина: {lost_reason})"
+    log_history(client, ClientHistory.Kind.STAGE, history_text, user)
     if client.manager_id:
         notify(client.manager, Notification.Kind.STAGE_CHANGED,
                f"{client.full_name}: {old} → {stage.name}", client.get_absolute_url())
@@ -578,7 +607,7 @@ def kanban_move(request):
     except (KeyError, ValueError, Client.DoesNotExist, Stage.DoesNotExist):
         return HttpResponseBadRequest("bad request")
     ensure_client_access(request.user, client)
-    _do_stage_change(client, stage, request.user)
+    _do_stage_change(client, stage, request.user, lost_reason=payload.get("lost_reason", ""))
     return JsonResponse({"ok": True, "stage": stage.name, "created_task": client.has_open_task})
 
 

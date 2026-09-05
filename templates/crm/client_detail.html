@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page-head">
   <div>
-    <a href="{% url 'client_list' %}" class="muted">← Клиенты</a>
+    <a href="{% url 'client_list' %}" class="muted">← Список</a>
     <h1 style="margin-top:4px">{{ client.full_name }}
       <span class="stage-pill" style="background:{{ client.stage.color }};font-size:13px;vertical-align:middle">{{ client.stage.name }}</span>
     </h1>
@@ -14,23 +14,28 @@
     <a class="btn wa lg" target="_blank" href="{% url 'client_whatsapp' client.id %}">🟢 WhatsApp</a>
     {% endif %}
     <a class="btn secondary" href="{% url 'client_edit' client.id %}">✏️ Редактировать</a>
+    <form method="post" action="{% url 'client_bulk' %}" onsubmit="return confirm('Удалить {{ client.full_name }} без возможности восстановления?')">
+      {% csrf_token %}
+      <input type="hidden" name="client_ids" value="{{ client.id }}">
+      <button class="btn danger" name="action" value="delete">🗑</button>
+    </form>
   </div>
 </div>
 
 <div class="split">
   <div class="stack">
     <!-- смена стадии -->
-    <div class="card pad">
-      <form method="post" action="{% url 'client_change_stage' client.id %}" class="row">
-        {% csrf_token %}
-        <b>Стадия:</b>
-        <select class="field-input field-select" style="max-width:220px" name="stage">
-          {% for s in stages %}<option value="{{ s.id }}" {% if s.id == client.stage_id %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
-        </select>
-        <button class="btn sm">Сменить</button>
-        <span class="sp" style="flex:1"></span>
-        {% if client.next_step %}<span class="muted">Следующий шаг: <b>{{ client.next_step }}</b>{% if client.next_step_at %} — {{ client.next_step_at|date:"d.m.Y H:i" }}{% endif %}</span>{% endif %}
-      </form>
+    <div class="card pad row">
+      <b>Стадия:</b>
+      <select class="stage-select" data-stage-select data-url="{% url 'client_change_stage' client.id %}"
+              style="background:{{ client.stage.color }};max-width:220px">
+        {% for s in stages %}
+        <option value="{{ s.id }}" data-color="{{ s.color }}" data-lost="{% if s.is_lost %}1{% else %}0{% endif %}" {% if s.id == client.stage_id %}selected{% endif %}>{{ s.name }}</option>
+        {% endfor %}
+      </select>
+      {% if client.lost_reason %}<span class="badge red">Причина: {{ client.lost_reason }}</span>{% endif %}
+      <span class="sp" style="flex:1"></span>
+      {% if client.next_step %}<span class="muted">Следующий шаг: <b>{{ client.next_step }}</b>{% if client.next_step_at %} — {{ client.next_step_at|date:"d.m.Y H:i" }}{% endif %}</span>{% endif %}
     </div>
 
     <!-- инфо -->

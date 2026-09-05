@@ -10,15 +10,17 @@
   </div>
 </div>
 
-<div class="stats" style="margin-bottom:var(--sp-4);grid-template-columns:repeat(3,1fr)">
-  <a class="stat accent" href="?stage=new"><div class="k">Новых лидов</div><div class="v">{{ dash_counts.new|default:0 }}</div></a>
+<div class="stats" style="margin-bottom:var(--sp-4);grid-template-columns:repeat(2,1fr)">
   <a class="stat {% if tasks_overdue %}danger{% endif %}" href="{% url 'task_list' %}?tab=overdue"><div class="k">Просрочено задач</div><div class="v">{{ tasks_overdue }}</div></a>
   <a class="stat" href="{% url 'task_list' %}?tab=today"><div class="k">Задач сегодня</div><div class="v">{{ tasks_today }}</div></a>
 </div>
 
-<div class="chips" style="margin-bottom:var(--sp-3)">
+<div class="stats stage-tiles" style="margin-bottom:var(--sp-4)">
   {% for s in dash_stages %}
-  <a class="chip {% if stage_slug == s.slug %}active{% endif %}" href="?stage={{ s.slug }}">{{ s.name }} · {{ dash_counts|get:s.slug|default:0 }}</a>
+  <a class="stat stage-tile {% if stage_slug == s.slug %}selected{% endif %}" href="?stage={{ s.slug }}" style="--tile-color:{{ s.color }}">
+    <div class="k"><span class="stage-dot" style="background:{{ s.color }}"></span>{{ s.name }}</div>
+    <div class="v">{{ dash_counts|get:s.slug|default:0 }}</div>
+  </a>
   {% endfor %}
 </div>
 

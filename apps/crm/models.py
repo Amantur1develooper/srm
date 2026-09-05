@@ -75,11 +75,32 @@ class Stage(models.Model):
         return self.name
 
 
+class Funnel(models.Model):
+    """Воронка/проект (напр. «Эл Насип», «Standart House») — к чему относится лид.
+
+    Не путать с ``Stage.in_funnel`` (это флаг «в основной воронке стадий»)."""
+
+    name = models.CharField("Название", max_length=100, unique=True)
+    slug = models.SlugField("Код", max_length=100, unique=True)
+    order = models.PositiveIntegerField("Порядок", default=0)
+    is_active = models.BooleanField("Активна", default=True)
+
+    class Meta:
+        verbose_name = "Воронка"
+        verbose_name_plural = "Воронки"
+        ordering = ["order", "id"]
+
+    def __str__(self) -> str:
+        return self.name
+
+
 class Client(models.Model):
     """Клиент. Основной идентификатор для дедупликации — нормализованный телефон."""
 
     class Source(models.TextChoices):
         UNKNOWN = "unknown", "Не указан"
+        BITRIX = "bitrix", "База Bitrix"
+        MANUAL = "manual", "Вручную"
         EXCEL = "excel", "Импорт Excel"
         WHATSAPP = "whatsapp", "WhatsApp"
         CALL = "call", "Звонок"
@@ -108,11 +129,15 @@ class Client(models.Model):
     )
     source = models.CharField("Источник", max_length=16, choices=Source.choices, default=Source.UNKNOWN)
     stage = models.ForeignKey(Stage, verbose_name="Стадия", on_delete=models.PROTECT, related_name="clients")
+    funnel = models.ForeignKey(
+        Funnel, verbose_name="Воронка", on_delete=models.SET_NULL, null=True, blank=True, related_name="clients"
+    )
 
     looking_for = models.TextField("Что ищет", blank=True)
     what_has = models.TextField("Что есть", blank=True)
     budget = models.CharField("Бюджет", max_length=255, blank=True)
     comment = models.TextField("Комментарий", blank=True)
+    lost_reason = models.CharField("Причина проигрыша", max_length=255, blank=True)
 
     next_step = models.CharField("Следующий шаг", max_length=255, blank=True)
     next_step_at = models.DateTimeField("Срок следующего действия", null=True, blank=True)

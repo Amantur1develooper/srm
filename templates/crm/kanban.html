@@ -51,7 +51,7 @@
           <button class="btn ghost sm" type="button" data-kquick-cancel>✕</button>
         </div>
       </form>
-      <div class="kcol-b" data-stage-id="{{ col.stage.id }}">
+      <div class="kcol-b" data-stage-id="{{ col.stage.id }}" data-lost="{% if col.stage.is_lost %}1{% else %}0{% endif %}">
         {% for c in col.clients %}
         <div class="kcard" draggable="true" data-client-id="{{ c.id }}">
           <span class="sel"><input type="checkbox" name="client_ids" value="{{ c.id }}"></span>

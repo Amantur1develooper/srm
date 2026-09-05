@@ -171,6 +171,13 @@ a.stat:active{transform:scale(.98)}
 .stat.success .v{color:var(--green-d)}
 .stat.warn .v{color:var(--orange-d)}
 
+/* плитки стадий на «Главном» — тот же компонент, что и метрики сверху */
+.stage-tiles{grid-template-columns:repeat(auto-fit,minmax(128px,1fr))}
+.stat.stage-tile{box-shadow:var(--shadow-sm),inset 0 3px 0 var(--tile-color)}
+.stat.stage-tile .k{display:flex;align-items:center;gap:6px}
+.stat.stage-tile.selected{box-shadow:0 0 0 2px var(--tile-color),inset 0 3px 0 var(--tile-color)}
+.stat.stage-tile.selected .v{color:var(--text)}
+
 /* ---------- badges / pills ---------- */
 .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:var(--r-pill);font-size:12px;font-weight:600;background:var(--fill);color:var(--muted);border:0;letter-spacing:-0.01em}
 .badge.red{background:var(--danger-soft);color:var(--red-d)}
@@ -506,15 +513,20 @@ td[data-task-cell]{min-width:170px;max-width:240px}
 .ttext:hover{background:var(--fill-quat)}
 .ttext:focus{background:var(--surface);box-shadow:0 0 0 2px var(--blue);outline:none;white-space:normal;overflow:visible}
 .tdate{
-  flex:0 0 auto;width:104px;border:0;background:transparent;color:var(--muted);font-size:12.5px;font-weight:600;
-  font-family:inherit;padding:2px 4px;border-radius:5px;cursor:pointer;
+  flex:0 0 auto;width:112px;border:0;background:var(--fill);color:var(--muted);font-size:12px;font-weight:600;
+  font-family:inherit;padding:4px 7px;border-radius:var(--r-pill);cursor:pointer;text-align:center;
+  -webkit-appearance:none;appearance:none;
 }
-.tdate:hover{background:var(--fill-quat)}
+.tdate:hover{background:var(--fill-hover)}
 .tdate:focus{background:var(--surface);box-shadow:0 0 0 2px var(--blue);outline:none;color:var(--text)}
-.titem.tone-red .tdate{color:var(--red-d)}
-.titem.tone-amber .tdate{color:var(--orange-d)}
-.tclient{flex:0 0 auto;max-width:110px;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tclient:hover{color:var(--blue);opacity:1}
+.titem.tone-red .tdate{background:var(--danger-soft);color:var(--red-d)}
+.titem.tone-amber .tdate{background:var(--warning-soft);color:var(--orange-d)}
+.tclient{
+  flex:0 0 auto;max-width:110px;font-size:11.5px;font-weight:600;color:var(--muted);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:var(--fill-quat);
+  padding:3px 8px;border-radius:var(--r-pill);
+}
+.tclient:hover{color:var(--blue);opacity:1;background:var(--blue-tint)}
 
 /* funnel bar */
 .funnel{display:flex;flex-direction:column;gap:9px}

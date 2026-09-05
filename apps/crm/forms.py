@@ -3,7 +3,7 @@ from __future__ import annotations
 from django import forms
 from django.contrib.auth import get_user_model
 
-from .models import Client, Comment, MessageTemplate, Stage, Task
+from .models import Client, Comment, Funnel, MessageTemplate, Stage, Task
 
 User = get_user_model()
 
@@ -46,21 +46,30 @@ class ClientForm(BootstrapMixin, forms.ModelForm):
 
     class Meta:
         model = Client
-        fields = ["last_name", "first_name", "middle_name", "phone", "manager", "looking_for", "what_has", "comment"]
+        fields = [
+            "last_name", "first_name", "middle_name", "phone", "manager", "source", "funnel",
+            "looking_for", "what_has", "comment",
+        ]
         widgets = {
             "looking_for": forms.Textarea(attrs={"rows": 2}),
             "what_has": forms.Textarea(attrs={"rows": 2}),
             "comment": forms.Textarea(attrs={"rows": 3}),
         }
-        labels = {"looking_for": "Что ищет", "what_has": "Что есть"}
+        labels = {"looking_for": "Что ищет", "what_has": "Что есть", "source": "База", "funnel": "Воронка"}
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["manager"].queryset = _manager_qs()
+        self.fields["funnel"].queryset = Funnel.objects.filter(is_active=True)
+        self.fields["funnel"].required = False
+        self.fields["source"].required = False
         self.fields["last_name"].widget.attrs["autofocus"] = True
         if user is not None and not user.can_see_all_clients:
             self.fields["manager"].initial = user
             self.fields["manager"].disabled = True
+
+    def clean_source(self):
+        return self.cleaned_data.get("source") or Client.Source.UNKNOWN
 
     def clean(self):
         cleaned = super().clean()

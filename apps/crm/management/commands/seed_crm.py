@@ -13,7 +13,7 @@ from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from apps.crm.models import MessageTemplate, Stage
+from apps.crm.models import Funnel, MessageTemplate, Stage
 
 User = get_user_model()
 
@@ -27,6 +27,11 @@ STAGES = [
     ("cold", "Холодный", 60, "#0ea5e9", False, False, False),
     ("frozen", "Заморожен", 70, "#94a3b8", False, False, False),
     ("lost", "Проигранные", 80, "#64748b", False, False, True),
+]
+
+FUNNELS = [
+    ("el-nasip", "Эл Насип", 10),
+    ("standart-house", "Standart House", 20),
 ]
 
 TEMPLATES = [
@@ -63,6 +68,10 @@ class Command(BaseCommand):
                 ),
             )
         self.stdout.write(self.style.SUCCESS(f"Стадии: {Stage.objects.count()}"))
+
+        for slug, name, order in FUNNELS:
+            Funnel.objects.update_or_create(slug=slug, defaults=dict(name=name, order=order, is_active=True))
+        self.stdout.write(self.style.SUCCESS(f"Воронки: {Funnel.objects.count()}"))
 
         for name, body in TEMPLATES:
             MessageTemplate.objects.get_or_create(name=name, defaults={"body": body})

@@ -21,7 +21,10 @@
         — {{ t.title|truncatechars:28 }}{% if c.open_tasks|length > 1 %} <span class="task-more">+{{ c.open_tasks|length|add:"-1" }}</span>{% endif %}
       </span>
     {% else %}
-      <span class="sub muted">{{ c.full_name }}{% if c.manager %} · {{ c.manager.display_name }}{% endif %}</span>
+      <span class="sub muted">
+        {% if c.comment %}{{ c.comment|truncatechars:34 }}{% else %}{{ c.full_name }}{% endif %}
+        {% if c.manager %} · {{ c.manager.display_name }}{% endif %}
+      </span>
       <button type="button" class="task-add" data-add-task data-url="{% url 'client_add_task' c.id %}"
               data-client="{{ c.full_name }}" onclick="event.stopPropagation()">＋ задача</button>
     {% endif %}
@@ -31,7 +34,7 @@
     <select class="stage-select" data-stage-select data-url="{% url 'client_change_stage' c.id %}"
             style="background:{{ c.stage.color }}" onclick="event.stopPropagation()" title="Сменить стадию">
       {% for s in stages %}
-      <option value="{{ s.id }}" data-color="{{ s.color }}" {% if s.id == c.stage_id %}selected{% endif %}>{{ s.name }}</option>
+      <option value="{{ s.id }}" data-color="{{ s.color }}" data-lost="{% if s.is_lost %}1{% else %}0{% endif %}" {% if s.id == c.stage_id %}selected{% endif %}>{{ s.name }}</option>
       {% endfor %}
     </select>
     {% if c.wa_number %}<a class="wa-mini" target="_blank" href="{% url 'client_whatsapp' c.id %}" onclick="event.stopPropagation()" title="WhatsApp" aria-label="WhatsApp">✆</a>{% endif %}

@@ -175,21 +175,30 @@
         e.preventDefault();
         zone.classList.remove("drop-hint");
         if (!dragged) return;
-        const clientId = dragged.dataset.clientId;
+        const card = dragged;
+        const clientId = card.dataset.clientId;
         const stageId = zone.dataset.stageId;
-        if (dragged.parentElement === zone) return;
-        zone.appendChild(dragged);
-        updateCounts();
-        fetch(board.dataset.moveUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-CSRFToken": csrf() },
-          body: JSON.stringify({ client_id: clientId, stage_id: stageId }),
-        })
-          .then((r) => r.json())
-          .then((d) => {
-            if (!d.ok) location.reload();
+        if (card.parentElement === zone) return;
+
+        function commit(reason) {
+          zone.appendChild(card);
+          updateCounts();
+          fetch(board.dataset.moveUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-CSRFToken": csrf() },
+            body: JSON.stringify({ client_id: clientId, stage_id: stageId, lost_reason: reason || "" }),
           })
-          .catch(() => location.reload());
+            .then((r) => r.json())
+            .then((d) => { if (!d.ok) location.reload(); })
+            .catch(() => location.reload());
+        }
+        if (zone.dataset.lost === "1" && window.askLostReason) {
+          window.askLostReason(function (reason) {
+            if (reason !== null) commit(reason); // отмена — карточку никуда не переносим
+          });
+        } else {
+          commit("");
+        }
       });
     });
     function updateCounts() {
@@ -276,7 +285,84 @@
     });
   });
 
-  // ---- быстрая смена стадии прямо в списке клиентов ----
+  // ---- быстрая смена стадии прямо в списке/канбане/карточке ----
+  function submitStageChange(sel, opt, reason) {
+    const body = new URLSearchParams({ stage: sel.value });
+    if (reason) body.set("lost_reason", reason);
+    sel.classList.add("saving");
+    sel.classList.remove("saved");
+    fetch(sel.dataset.url, {
+      method: "POST",
+      headers: {
+        "X-Requested-With": "XMLHttpRequest",
+        "X-CSRFToken": csrf(),
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: body.toString(),
+    })
+      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+      .then((d) => {
+        sel.classList.remove("saving");
+        sel.classList.add("saved");
+        if (d.color) sel.style.background = d.color;
+        else if (opt && opt.dataset.color) sel.style.background = opt.dataset.color;
+        sel.dataset.prev = sel.value;
+        setTimeout(() => sel.classList.remove("saved"), 1200);
+      })
+      .catch(() => {
+        sel.classList.remove("saving");
+        sel.value = sel.dataset.prev; // откат
+        alert("Не удалось сменить стадию");
+      });
+  }
+
+  // модалка причины проигрыша — общая для Списка/Канбана/карточки клиента.
+  // window.askLostReason(cb) вызывает cb(reasonString) при сохранении/пропуске,
+  // либо cb(null), если отменили — вызывающий код сам решает, что делать с отменой.
+  const lostModal = document.getElementById("lostModal");
+  window.askLostReason = function (cb) {
+    if (!lostModal) { cb(""); return; }
+    const textEl = document.getElementById("lostReasonText");
+    textEl.value = "";
+    lostModal.querySelectorAll("[data-reason]").forEach((c) => c.classList.remove("active"));
+    lostModal.hidden = false;
+    setTimeout(() => textEl.focus(), 30);
+
+    function done(reason) {
+      lostModal.hidden = true;
+      cleanup();
+      cb(reason);
+    }
+    function onChip(e) {
+      textEl.value = e.currentTarget.dataset.reason;
+      lostModal.querySelectorAll("[data-reason]").forEach((c) => c.classList.remove("active"));
+      e.currentTarget.classList.add("active");
+    }
+    function onConfirm() { done(textEl.value.trim()); }
+    function onSkip() { done(""); }
+    function onCancel() { done(null); }
+    function onBackdrop(e) { if (e.target === lostModal) onCancel(); }
+    function onKey(e) { if (e.key === "Escape") onCancel(); }
+    const chips = Array.from(lostModal.querySelectorAll("[data-reason]"));
+    const cancelBtns = Array.from(lostModal.querySelectorAll("[data-lost-cancel]"));
+    const confirmBtn = document.getElementById("lostConfirm");
+    const skipBtn = document.getElementById("lostSkip");
+    function cleanup() {
+      chips.forEach((c) => c.removeEventListener("click", onChip));
+      cancelBtns.forEach((b) => b.removeEventListener("click", onCancel));
+      confirmBtn.removeEventListener("click", onConfirm);
+      skipBtn.removeEventListener("click", onSkip);
+      lostModal.removeEventListener("click", onBackdrop);
+      document.removeEventListener("keydown", onKey);
+    }
+    chips.forEach((c) => c.addEventListener("click", onChip));
+    cancelBtns.forEach((b) => b.addEventListener("click", onCancel));
+    confirmBtn.addEventListener("click", onConfirm);
+    skipBtn.addEventListener("click", onSkip);
+    lostModal.addEventListener("click", onBackdrop);
+    document.addEventListener("keydown", onKey);
+  };
+
   document.querySelectorAll("[data-stage-select]").forEach(function (sel) {
     sel.dataset.prev = sel.value;
     sel.addEventListener("click", function (e) {
@@ -284,32 +370,14 @@
     });
     sel.addEventListener("change", function () {
       const opt = sel.selectedOptions[0];
-      const body = new URLSearchParams({ stage: sel.value });
-      sel.classList.add("saving");
-      sel.classList.remove("saved");
-      fetch(sel.dataset.url, {
-        method: "POST",
-        headers: {
-          "X-Requested-With": "XMLHttpRequest",
-          "X-CSRFToken": csrf(),
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: body.toString(),
-      })
-        .then((r) => (r.ok ? r.json() : Promise.reject(r)))
-        .then((d) => {
-          sel.classList.remove("saving");
-          sel.classList.add("saved");
-          if (d.color) sel.style.background = d.color;
-          else if (opt && opt.dataset.color) sel.style.background = opt.dataset.color;
-          sel.dataset.prev = sel.value;
-          setTimeout(() => sel.classList.remove("saved"), 1200);
-        })
-        .catch(() => {
-          sel.classList.remove("saving");
-          sel.value = sel.dataset.prev; // откат
-          alert("Не удалось сменить стадию");
+      if (opt && opt.dataset.lost === "1") {
+        window.askLostReason(function (reason) {
+          if (reason === null) { sel.value = sel.dataset.prev; return; }
+          submitStageChange(sel, opt, reason);
         });
+        return;
+      }
+      submitStageChange(sel, opt, "");
     });
   });
 

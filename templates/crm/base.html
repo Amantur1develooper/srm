@@ -83,6 +83,28 @@
   <a href="{% url 'notifications' %}" class="{% if '/notifications' in request.path or '/messages' in request.path or '/templates' in request.path %}active{% endif %}" style="position:relative"><span class="ico">🔔</span>Ещё{% if nav_notifications %}<span class="badge red">{{ nav_notifications }}</span>{% endif %}</a>
 </nav>
 
+{% if user.is_authenticated %}
+<div class="modal-backdrop" id="lostModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-h"><b>Причина проигрыша</b><button type="button" class="btn ghost sm" data-lost-cancel aria-label="Закрыть">✕</button></div>
+    <div class="modal-b stack">
+      <div class="chips">
+        <button type="button" class="chip" data-reason="Спам">Спам</button>
+        <button type="button" class="chip" data-reason="Другой город">Другой город</button>
+        <button type="button" class="chip" data-reason="Ушли к конкуренту">Ушли к конкуренту</button>
+        <button type="button" class="chip" data-reason="Не отвечает">Не отвечает</button>
+        <button type="button" class="chip" data-reason="Дорого">Дорого</button>
+      </div>
+      <input class="field-input" id="lostReasonText" placeholder="Или свой комментарий…" autocomplete="off">
+      <div class="row">
+        <button type="button" class="btn" id="lostConfirm">Сохранить</button>
+        <button type="button" class="btn ghost" id="lostSkip">Без причины</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <script src="{% static 'crm/app.js' %}?v={{ asset_version }}"></script>
 {% block scripts %}{% endblock %}
 </body>

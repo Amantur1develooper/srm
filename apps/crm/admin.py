@@ -6,6 +6,7 @@ from .models import (
     Client,
     ClientHistory,
     Comment,
+    Funnel,
     ImportLog,
     Message,
     MessageTemplate,
@@ -33,6 +34,13 @@ class StageAdmin(admin.ModelAdmin):
     prepopulated_fields = {"slug": ("name",)}
 
 
+@admin.register(Funnel)
+class FunnelAdmin(admin.ModelAdmin):
+    list_display = ("name", "slug", "order", "is_active")
+    list_editable = ("order", "is_active")
+    prepopulated_fields = {"slug": ("name",)}
+
+
 class HistoryInline(admin.TabularInline):
     model = ClientHistory
     extra = 0
@@ -42,8 +50,8 @@ class HistoryInline(admin.TabularInline):
 
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
-    list_display = ("full_name", "phone", "stage", "manager", "next_step", "first_contact_date")
-    list_filter = ("stage", "manager", "source")
+    list_display = ("full_name", "phone", "stage", "funnel", "manager", "source", "created_at")
+    list_filter = ("stage", "funnel", "manager", "source")
     search_fields = ("full_name", "phone", "phone_normalized", "looking_for", "comment")
     autocomplete_fields = ("manager",)
     inlines = [HistoryInline]
