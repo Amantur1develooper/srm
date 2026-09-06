@@ -229,6 +229,28 @@ a.stat:active{transform:scale(.98)}
 }
 .filter-hmenu .hmenu-trigger:hover{background:var(--fill-hover)}
 .filter-hmenu .hmenu-trigger.active{background:var(--text);color:var(--surface)}
+/* клик-поповер фильтров (даты, «Ещё») — всегда полностью на экране */
+.filter-pop{position:relative;display:inline-flex}
+.filter-pop .hmenu-trigger{
+  display:inline-flex;align-items:center;gap:4px;padding:6px 12px;border-radius:var(--r-pill);
+  background:var(--fill);font-size:12.5px;font-weight:500;color:var(--text);border:0;cursor:pointer;font-family:inherit;
+}
+.filter-pop .hmenu-trigger:hover{background:var(--fill-hover)}
+.filter-pop .hmenu-trigger.active{background:var(--text);color:var(--surface)}
+.pop-panel{
+  position:fixed;display:none;z-index:3000;width:300px;max-width:calc(100vw - 24px);
+  background:var(--elevated);border-radius:var(--r-lg);box-shadow:var(--shadow-pop);
+  padding:14px;
+}
+.pop-panel.open{display:block;animation:sheet-in .1s ease}
+.pop-h{font-weight:700;font-size:13px;margin-bottom:10px}
+.pop-lbl{display:block;font-size:12px;color:var(--muted);font-weight:600;margin:8px 0 4px}
+.pop-range{display:flex;align-items:center;gap:8px}
+.pop-range .field-input{flex:1;min-width:0}
+.pop-panel .check-inline{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px}
+.pop-actions{display:flex;align-items:center;gap:8px;margin-top:12px}
+.pop-actions .btn.block{flex:1}
+
 .hmenu-pop a{display:block;padding:7px 9px;border-radius:var(--r-sm);font-size:13px;font-weight:500;color:var(--text);white-space:nowrap}
 .hmenu-pop a:hover{background:var(--fill-quat);opacity:1;text-decoration:none}
 .hmenu-pop a.active{font-weight:700;background:var(--blue-tint);color:var(--blue)}
@@ -340,8 +362,23 @@ table.tbl tr:last-child td{border-bottom:0}
 .kcard .kf{font-size:11px;color:var(--muted);margin-bottom:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:14px}
 .kcard .kf:empty::before{content:attr(data-placeholder);color:var(--muted-2)}
 .kcard .kf:focus{white-space:normal;overflow:visible;color:var(--text)}
-.knext{font-size:10.5px;color:var(--muted);margin:1px 0}
-.knext .task-dot{margin-right:2px;vertical-align:middle}
+.knext{font-size:10.5px;color:var(--muted);margin:1px 0;display:flex;align-items:center;gap:4px;min-width:0}
+.knext .task-dot{margin-right:0;vertical-align:middle;flex:0 0 auto}
+.ktdate{
+  flex:0 0 auto;width:78px;border:0;background:transparent;color:var(--muted);
+  font:inherit;font-size:10px;font-weight:700;padding:0;cursor:pointer;-webkit-appearance:none;appearance:none;
+}
+.ktdate:hover{color:var(--text)}
+.ktdate.red{color:var(--red-d)}
+.ktdate.amber{color:var(--orange-d)}
+.ktdate::-webkit-calendar-picker-indicator{display:none}
+.kcard .kf.ktitle{flex:1 1 auto;font-size:10.5px;color:var(--muted)}
+.ktask-add{
+  background:none;border:0;padding:0;font:inherit;font-size:10.5px;font-weight:700;
+  color:var(--blue);cursor:pointer;font-family:inherit;
+}
+.ktask-add:hover{opacity:.7}
+.ktask-input{font-size:11px !important;padding:2px 6px !important;height:auto !important;width:100%}
 .kfoot{font-size:10px;color:var(--muted-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
 .kfoot .kname{color:var(--muted-2)}
 .kfoot .kname:focus{color:var(--text)}
@@ -393,7 +430,8 @@ body.selecting .kcard .kcard-open{display:none}
   font-weight:600;font-size:14px;color:#fff;letter-spacing:-0.02em;
 }
 /* тело не растягивается на всю ширину — всё держится слева, вплотную */
-.ios-row .body{flex:0 1 auto;min-width:0;display:flex;flex-direction:column;max-width:min(620px,60vw)}
+/* фикс. ширина колонки инфо -> стадия и WhatsApp у всех лидов на одной вертикали (как Excel) */
+.ios-row .body{flex:0 0 auto;min-width:0;width:min(560px,54vw);display:flex;flex-direction:column}
 .ios-row .ttl{display:flex;align-items:baseline;gap:8px;font-weight:600;font-size:14px;letter-spacing:-0.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ios-row .sub{display:flex;align-items:center;gap:4px;font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
 .ios-row .rowmeta{color:var(--muted);font-weight:500;overflow:visible}
@@ -404,7 +442,23 @@ body.selecting .kcard .kcard-open{display:none}
 }
 .phone-copy:hover{color:var(--blue)}
 .phone-copy.copied{color:var(--green-d)}
+
+/* номер как обычный текст: выделяется мышкой, Ctrl+C; клик по строке при этом не срабатывает */
+.phone-val{
+  font-variant-numeric:tabular-nums;color:var(--text);cursor:text;
+  user-select:text;-webkit-user-select:text;white-space:nowrap;border-radius:4px;
+  transition:background .15s;
+}
+.phone-val:hover{background:var(--fill-quat)}
+.phone-val.copied{background:var(--success-soft);color:var(--green-d)}
 .ios-row .trail{display:flex;align-items:center;gap:8px;flex:0 0 auto;color:var(--muted);font-size:13px;margin-left:var(--sp-3)}
+.ios-row .trail .hmenu{width:146px;flex:0 0 146px}
+.ios-row .trail .stage-pill-btn{width:100%;text-align:left}
+.ios-row .trail .wa-mini{flex:0 0 30px}
+@media (max-width:760px){
+  .ios-row .body{width:auto;flex:1 1 auto;max-width:none}
+  .ios-row .trail .hmenu{width:auto;flex:0 0 auto}
+}
 .ios-row .chev{display:none}
 .ios-row .sel{width:22px;height:22px;flex:0 0 22px;display:none;align-items:center;justify-content:center}
 .ios-row .sel input{width:20px;height:20px;accent-color:var(--blue)}

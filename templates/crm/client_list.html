@@ -78,36 +78,37 @@
   <input type="hidden" name="source" value="{{ current.source|default:'' }}">
   <input type="hidden" name="sort" value="{{ sort }}">
 
-  <div class="hmenu filter-hmenu" data-hmenu>
-    <button type="button" class="hmenu-trigger {% if current.date_from or current.date_to or current.created_from or current.created_to %}active{% endif %}">📅 Даты ▾</button>
-    <div class="hmenu-pop" style="min-width:250px;padding:10px">
-      <div class="form-row" style="margin-bottom:8px">
-        <label>Дата обращения</label>
-        <div class="row" style="gap:6px;flex-wrap:nowrap">
-          <input class="field-input" type="date" name="date_from" value="{{ current.date_from|default:'' }}">
-          <span class="muted">—</span>
-          <input class="field-input" type="date" name="date_to" value="{{ current.date_to|default:'' }}">
-        </div>
+  <div class="filter-pop" data-popover>
+    <button type="button" class="hmenu-trigger {% if current.date_from or current.date_to or current.created_from or current.created_to %}active{% endif %}" data-pop-trigger>📅 Даты ▾</button>
+    <div class="pop-panel" data-pop-panel>
+      <div class="pop-h">Фильтр по датам</div>
+      <label class="pop-lbl">Дата обращения</label>
+      <div class="pop-range">
+        <input class="field-input" type="date" name="date_from" value="{{ current.date_from|default:'' }}" aria-label="Дата обращения с">
+        <span class="muted">—</span>
+        <input class="field-input" type="date" name="date_to" value="{{ current.date_to|default:'' }}" aria-label="Дата обращения по">
       </div>
-      <div class="form-row" style="margin-bottom:10px">
-        <label>Дата создания в CRM</label>
-        <div class="row" style="gap:6px;flex-wrap:nowrap">
-          <input class="field-input" type="date" name="created_from" value="{{ current.created_from|default:'' }}">
-          <span class="muted">—</span>
-          <input class="field-input" type="date" name="created_to" value="{{ current.created_to|default:'' }}">
-        </div>
+      <label class="pop-lbl">Дата создания в CRM</label>
+      <div class="pop-range">
+        <input class="field-input" type="date" name="created_from" value="{{ current.created_from|default:'' }}" aria-label="Дата создания с">
+        <span class="muted">—</span>
+        <input class="field-input" type="date" name="created_to" value="{{ current.created_to|default:'' }}" aria-label="Дата создания по">
       </div>
-      <button class="btn sm block" type="submit">Применить</button>
+      <div class="pop-actions">
+        <button class="btn sm block" type="submit">Применить</button>
+        <a href="?{{ qs_base_dates }}" class="btn ghost sm">Очистить</a>
+      </div>
     </div>
   </div>
 
-  <div class="hmenu filter-hmenu" data-hmenu>
-    <button type="button" class="hmenu-trigger {% if current.has_task or current.overdue_task or current.has_phone %}active{% endif %}">Ещё ▾</button>
-    <div class="hmenu-pop" style="min-width:220px;padding:10px">
-      <label class="check-inline" style="padding:5px 0"><input class="field-check" type="checkbox" name="has_task" value="1" {% if current.has_task == '1' %}checked{% endif %}> Есть задача</label>
-      <label class="check-inline" style="padding:5px 0"><input class="field-check" type="checkbox" name="overdue_task" value="1" {% if current.overdue_task == '1' %}checked{% endif %}> Просроченная задача</label>
-      <label class="check-inline" style="padding:5px 0"><input class="field-check" type="checkbox" name="has_phone" value="1" {% if current.has_phone == '1' %}checked{% endif %}> С телефоном</label>
-      <button class="btn sm block" type="submit" style="margin-top:8px">Применить</button>
+  <div class="filter-pop" data-popover>
+    <button type="button" class="hmenu-trigger {% if current.has_task or current.overdue_task or current.has_phone %}active{% endif %}" data-pop-trigger>Ещё ▾</button>
+    <div class="pop-panel" data-pop-panel>
+      <div class="pop-h">Дополнительно</div>
+      <label class="check-inline"><input class="field-check" type="checkbox" name="has_task" value="1" {% if current.has_task == '1' %}checked{% endif %}> Есть задача</label>
+      <label class="check-inline"><input class="field-check" type="checkbox" name="overdue_task" value="1" {% if current.overdue_task == '1' %}checked{% endif %}> Просроченная задача</label>
+      <label class="check-inline"><input class="field-check" type="checkbox" name="has_phone" value="1" {% if current.has_phone == '1' %}checked{% endif %}> С телефоном</label>
+      <div class="pop-actions"><button class="btn sm block" type="submit">Применить</button></div>
     </div>
   </div>
 

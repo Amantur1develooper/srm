@@ -170,6 +170,13 @@ class Client(models.Model):
             self.full_name = " ".join(
                 p for p in (self.last_name, self.first_name, self.middle_name) if p
             ).strip() or self.full_name
+        # Нормализованный телефон — единый внутренний формат для поиска (без +, пробелов, дефисов).
+        from .utils import normalize_phone
+
+        self.phone_normalized = normalize_phone(self.phone)
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None and "phone" in update_fields:
+            kwargs["update_fields"] = list(update_fields) + ["phone_normalized"]
         super().save(*args, **kwargs)
 
     def get_absolute_url(self) -> str:

@@ -62,7 +62,18 @@
           <div class="kf" contenteditable data-field="looking_for" data-client-id="{{ c.id }}" data-placeholder="Ищет: —">{{ c.looking_for }}</div>
           <div class="kf" contenteditable data-field="what_has" data-client-id="{{ c.id }}" data-placeholder="Есть: —">{{ c.what_has }}</div>
           {% with t=c.next_task %}
-          <div class="knext">{% if t %}<span class="task-dot {{ t.due_tone }}"></span> {{ t.due_human }} — {{ t.title|truncatechars:28 }}{% else %}<span class="muted">нет задачи</span>{% endif %}</div>
+          <div class="knext" data-ktask data-add-url="{% url 'client_add_task' c.id %}">
+            {% if t %}
+              <span class="task-dot {{ t.due_tone }}"></span>
+              <input type="date" class="ktdate {{ t.due_tone }}" value="{{ t.due_date|date:'Y-m-d' }}"
+                     data-inline-change data-url="{% url 'task_inline_update' t.id %}" data-field="due_date" title="Срок">
+              <span class="kf ktitle" contenteditable data-inline-edit
+                    data-url="{% url 'task_inline_update' t.id %}" data-field="title"
+                    data-placeholder="задача" onclick="event.stopPropagation()">{{ t.title }}</span>
+            {% else %}
+              <button type="button" class="ktask-add" data-ktask-add onclick="event.stopPropagation()">＋ задача</button>
+            {% endif %}
+          </div>
           {% endwith %}
           <div class="kfoot">
             <span class="kf kname" contenteditable data-field="full_name" data-client-id="{{ c.id }}">{{ c.full_name }}</span>

@@ -232,6 +232,26 @@ class AccessTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(Task.objects.filter(client=self.c1, title="Позвонить").count(), 2)
 
+    def test_phone_normalized_and_search(self):
+        self.client.login(username="m1", password="x")
+        c = Client.objects.create(full_name="Поиск", stage=self.stage, manager=self.m1, phone="0555 12-34-56")
+        c.refresh_from_db()
+        self.assertEqual(c.phone_normalized, "996555123456")
+        # ищем в формате из WhatsApp — с плюсом и пробелами
+        for query in ("+996 555 123 456", "555123456", "0555123456"):
+            resp = self.client.get("/clients/", {"q": query})
+            self.assertContains(resp, "Поиск", msg_prefix=query)
+
+    def test_task_create_from_kanban(self):
+        self.client.login(username="m1", password="x")
+        resp = self.client.post(
+            f"/clients/{self.c1.id}/task/", {"title": "Перезвонить"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json()["ok"])
+        self.assertTrue(self.c1.tasks.filter(title="Перезвонить").exists())
+
     def test_quick_create_in_kanban(self):
         self.client.login(username="m1", password="x")
         resp = self.client.post(

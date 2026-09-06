@@ -13,7 +13,8 @@
             data-url="{% url 'client_inline_update' c.id %}" data-field="full_name"
             data-placeholder="Без имени" onclick="event.stopPropagation()">{{ c.full_name }}</span>
       {% if c.phone %}
-        <button type="button" class="phone-copy" data-copy="{{ c.phone }}" onclick="event.stopPropagation()" title="Скопировать номер">{{ c.phone }}</button>
+        <span class="phone-val" data-copy="{{ c.phone }}" onmousedown="event.stopPropagation()" onclick="event.stopPropagation()"
+              title="Клик — скопировать · или выделите и Ctrl+C">{{ c.phone }}</span>
       {% else %}
         <span class="muted">без телефона</span>
       {% endif %}

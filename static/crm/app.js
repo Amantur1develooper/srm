@@ -126,6 +126,17 @@
   document.querySelectorAll("[data-copy]").forEach(function (btn) {
     btn.addEventListener("click", function (e) {
       e.stopPropagation();
+      // Пользователь выделил номер мышкой — не мешаем, пусть копирует сам (Ctrl+C).
+      const sel = window.getSelection && window.getSelection().toString().trim();
+      if (sel && btn.contains(window.getSelection().anchorNode)) return;
+      // Номер-текст: только подсветка, текст не подменяем (чтобы строка не «прыгала»).
+      if (btn.classList.contains("phone-val")) {
+        copyText(btn.dataset.copy).then(function () {
+          btn.classList.add("copied");
+          setTimeout(function () { btn.classList.remove("copied"); }, 900);
+        });
+        return;
+      }
       const original = btn.textContent;
       const feedback = btn.classList.contains("kcopy") ? "✓" : "Скопировано";
       copyText(btn.dataset.copy).then(function () {
@@ -239,8 +250,40 @@
       });
     });
 
+    // ---- задача прямо на карточке Канбана: клик → написал → Enter → готово ----
+    board.querySelectorAll("[data-ktask-add]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        const box = btn.closest("[data-ktask]");
+        const inp = document.createElement("input");
+        inp.className = "field-input ktask-input";
+        inp.placeholder = "Что сделать… (Enter)";
+        inp.autocomplete = "off";
+        btn.replaceWith(inp);
+        inp.focus();
+        function cancel() { if (inp.isConnected) inp.replaceWith(btn); }
+        inp.addEventListener("keydown", function (e) {
+          if (e.key === "Escape") cancel();
+          if (e.key !== "Enter") return;
+          e.preventDefault();
+          const title = inp.value.trim();
+          if (!title) { cancel(); return; }
+          inp.disabled = true;
+          fetch(box.dataset.addUrl, {
+            method: "POST",
+            headers: { "X-Requested-With": "XMLHttpRequest", "X-CSRFToken": csrf(), "Content-Type": "application/x-www-form-urlencoded" },
+            body: "title=" + encodeURIComponent(title),
+          })
+            .then((r) => r.json())
+            .then((d) => { if (d.ok) location.reload(); else { inp.disabled = false; alert("Не удалось создать задачу"); } })
+            .catch(() => { inp.disabled = false; });
+        });
+        inp.addEventListener("blur", function () { setTimeout(cancel, 120); });
+      });
+    });
+
     // ---- редактирование прямо на карточке: клик → курсор → ввод (как в Excel) ----
-    board.querySelectorAll(".kf").forEach(function (el) {
+    // .kf с data-inline-edit (задача) обрабатывает общий биндер по своему data-url — их пропускаем.
+    board.querySelectorAll(".kf:not([data-inline-edit])").forEach(function (el) {
       let before = el.textContent;
       el.addEventListener("focus", function () { before = el.textContent; });
       el.addEventListener("keydown", function (e) {
@@ -509,6 +552,54 @@
         });
       });
     });
+  })();
+
+  // ---- клик-поповер (фильтр по датам, «Ещё»): открыт по клику, полностью виден,
+  // закрывается только по клику вне / Esc / «Применить». Не закрывается, пока выбираешь дату. ----
+  (function () {
+    const wraps = document.querySelectorAll("[data-popover]");
+    if (!wraps.length) return;
+
+    function place(panel, trigger) {
+      const r = trigger.getBoundingClientRect();
+      panel.style.visibility = "hidden";
+      panel.classList.add("open");
+      const pr = panel.getBoundingClientRect();
+      let top = r.bottom + 6;
+      if (top + pr.height > window.innerHeight - 12) {
+        top = Math.max(12, Math.min(r.top - pr.height - 6, window.innerHeight - pr.height - 12));
+      }
+      let left = r.left;
+      if (left + pr.width > window.innerWidth - 12) left = window.innerWidth - pr.width - 12;
+      panel.style.top = top + "px";
+      panel.style.left = Math.max(12, left) + "px";
+      panel.style.visibility = "";
+    }
+    function closeAll(except) {
+      wraps.forEach(function (w) {
+        if (w === except) return;
+        const p = w.querySelector("[data-pop-panel]");
+        if (p) p.classList.remove("open");
+        w.classList.remove("is-open");
+      });
+    }
+    wraps.forEach(function (wrap) {
+      const trigger = wrap.querySelector("[data-pop-trigger]");
+      const panel = wrap.querySelector("[data-pop-panel]");
+      if (!trigger || !panel) return;
+      trigger.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const isOpen = panel.classList.contains("open");
+        closeAll(wrap);
+        if (isOpen) { panel.classList.remove("open"); wrap.classList.remove("is-open"); }
+        else { place(panel, trigger); wrap.classList.add("is-open"); }
+      });
+      panel.addEventListener("click", function (e) { e.stopPropagation(); });
+    });
+    document.addEventListener("click", function () { closeAll(null); });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeAll(null); });
+    window.addEventListener("resize", function () { closeAll(null); });
   })();
 
   // ---- «Выбрать действие» в Списке: одна кнопка, наведение открывает список действий,

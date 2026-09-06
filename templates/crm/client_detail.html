@@ -11,7 +11,7 @@
       <span class="stage-pill" style="background:{{ client.stage.color }};font-size:13px;vertical-align:middle">{{ client.stage.name }}</span>
     </h1>
     {% if client.phone %}
-    <button type="button" class="phone-copy mono" data-copy="{{ client.phone }}" title="Скопировать номер">{{ client.phone }}</button>
+    <span class="phone-val mono" data-copy="{{ client.phone }}" title="Клик — скопировать · или выделите и Ctrl+C">{{ client.phone }}</span>
     {% else %}<small class="muted">без телефона</small>{% endif %}
   </div>
   <div class="actions">

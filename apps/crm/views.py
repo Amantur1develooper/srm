@@ -53,7 +53,7 @@ from .models import (
     WhatsAppAction,
 )
 from .services import excel_export, excel_import
-from .utils import log_history, notify, render_template
+from .utils import log_history, normalize_phone, notify, render_template
 
 User = get_user_model()
 
@@ -166,6 +166,7 @@ def client_list(request):
         "qs_no_manager": _querystring(request, exclude=["page", "manager"]),
         "qs_no_funnel": _querystring(request, exclude=["page", "funnel"]),
         "qs_no_source": _querystring(request, exclude=["page", "source"]),
+        "qs_base_dates": _querystring(request, exclude=["page", "date_from", "date_to", "created_from", "created_to"]),
         "stage_counts": dict(_client_counts_by(clients_for(user), "stage__slug")),
         "manager_counts": dict(_client_counts_by(clients_for(user), "manager_id")),
         "funnel_counts": dict(_client_counts_by(clients_for(user), "funnel__slug")),
@@ -181,17 +182,29 @@ def _client_counts_by(qs, field):
     return list(qs.values(field).annotate(n=Count("id")).values_list(field, "n"))
 
 
+def _search_q(q):
+    """Единый поиск: имя, телефон в любом формате (+996 555…, 0555…, пробелы/дефисы), комментарий."""
+    import re
+
+    cond = (
+        Q(full_name__icontains=q)
+        | Q(phone__icontains=q)
+        | Q(phone_normalized__icontains=q)
+        | Q(looking_for__icontains=q)
+        | Q(comment__icontains=q)
+    )
+    digits = re.sub(r"\D", "", q)
+    if len(digits) >= 4:
+        cond |= Q(phone_normalized__icontains=digits)
+        cond |= Q(phone_normalized__icontains=normalize_phone(q))
+    return cond
+
+
 def _apply_client_filters(request, qs, user):
     g = request.GET
     q = g.get("q", "").strip()
     if q:
-        qs = qs.filter(
-            Q(full_name__icontains=q)
-            | Q(phone__icontains=q)
-            | Q(phone_normalized__icontains=q)
-            | Q(looking_for__icontains=q)
-            | Q(comment__icontains=q)
-        )
+        qs = qs.filter(_search_q(q))
     if g.get("stage"):
         qs = qs.filter(stage__slug=g["stage"])
     if g.get("manager"):
@@ -1163,11 +1176,7 @@ def global_search(request):
     clients = tasks = []
     if q:
         clients = clients_for(request.user).filter(
-            Q(full_name__icontains=q)
-            | Q(phone__icontains=q)
-            | Q(phone_normalized__icontains=q)
-            | Q(looking_for__icontains=q)
-            | Q(comment__icontains=q)
+            _search_q(q)
             | Q(stage__name__icontains=q)
             | Q(manager__first_name__icontains=q)
         )[:50]
