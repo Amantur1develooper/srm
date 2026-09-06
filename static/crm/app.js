@@ -79,7 +79,7 @@
     // Клик по строке: в обычном режиме — открыть карточку; в режиме выбора — отметить.
     document.querySelectorAll("[data-select-row]").forEach(function (row) {
       row.addEventListener("click", function (e) {
-        if (e.target.closest("a,button,select,textarea,label,input")) return;
+        if (e.target.closest("a,button,select,textarea,label,input,[contenteditable]")) return;
         if (document.body.classList.contains("selecting")) {
           const box = row.querySelector("[name=client_ids]");
           if (box) { box.checked = !box.checked; markRow(box); refresh(); }
@@ -267,6 +267,92 @@
     });
   }
 
+  // ---- редактирование поля на месте где угодно: [data-inline-edit] со своим data-url и data-field ----
+  document.querySelectorAll("[data-inline-edit]").forEach(function (el) {
+    let before = el.textContent;
+    const multiline = el.dataset.multiline === "1";
+    el.addEventListener("focus", function () { before = el.textContent; });
+    el.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" && !multiline) { e.preventDefault(); el.blur(); }
+      if (e.key === "Escape") { el.textContent = before; el.blur(); }
+    });
+    el.addEventListener("blur", function () {
+      const val = el.textContent.trim();
+      if (val === before.trim()) return;
+      el.classList.add("saving");
+      fetch(el.dataset.url, {
+        method: "POST",
+        headers: { "X-Requested-With": "XMLHttpRequest", "X-CSRFToken": csrf(), "Content-Type": "application/x-www-form-urlencoded" },
+        body: "field=" + encodeURIComponent(el.dataset.field) + "&value=" + encodeURIComponent(val),
+      })
+        .then((r) => r.json())
+        .then((d) => {
+          el.classList.remove("saving");
+          if (!d.ok) { el.textContent = before; alert(d.error || "Не удалось сохранить"); }
+          else before = val;
+        })
+        .catch(() => { el.classList.remove("saving"); el.textContent = before; });
+    });
+  });
+
+  // ---- инлайновый select / input (менеджер, воронка, источник, дата задачи): change -> AJAX ----
+  document.querySelectorAll("[data-inline-change]").forEach(function (sel) {
+    sel.addEventListener("click", function (e) { e.stopPropagation(); });
+    sel.addEventListener("change", function () {
+      fetch(sel.dataset.url, {
+        method: "POST",
+        headers: { "X-Requested-With": "XMLHttpRequest", "X-CSRFToken": csrf(), "Content-Type": "application/x-www-form-urlencoded" },
+        body: "field=" + encodeURIComponent(sel.dataset.field) + "&value=" + encodeURIComponent(sel.value),
+      }).then((r) => r.json()).then((d) => {
+        if (d.ok) { sel.classList.add("saved"); setTimeout(() => sel.classList.remove("saved"), 1000); }
+        else if (d.error) alert(d.error);
+      });
+    });
+  });
+
+  // ---- «Выполнено» в карточке лида: AJAX + предложить повтор с новой датой ----
+  document.querySelectorAll("form[data-task-done]").forEach(function (form) {
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      const line = form.closest(".task-line");
+      fetch(form.action, {
+        method: "POST",
+        headers: { "X-Requested-With": "XMLHttpRequest", "X-CSRFToken": csrf() },
+        body: new FormData(form),
+      })
+        .then((r) => r.json())
+        .then((d) => {
+          if (!d.ok) return;
+          if (line) line.classList.add("is-done");
+          form.querySelector(".task-check").classList.add("done");
+          if (d.repeat_title && line) offerCardRepeat(line, form.action, d.repeat_title);
+        });
+    });
+  });
+
+  function offerCardRepeat(line, statusUrl, title) {
+    if (line.nextElementSibling && line.nextElementSibling.classList.contains("trepeat")) return;
+    const taskId = statusUrl.match(/\/tasks\/(\d+)\//)[1];
+    const dt = new Date();
+    dt.setDate(dt.getDate() + 7);
+    const box = document.createElement("div");
+    box.className = "trepeat";
+    box.innerHTML =
+      '<span>↻ Повторить «' + title.replace(/</g, "&lt;") + '»</span>' +
+      '<input type="date" value="' + dt.toISOString().slice(0, 10) + '">' +
+      '<button type="button" class="btn sm">Создать</button>' +
+      '<button type="button" class="btn ghost sm" data-x>✕</button>';
+    line.after(box);
+    box.querySelector("[data-x]").addEventListener("click", () => box.remove());
+    box.querySelector(".btn:not(.ghost)").addEventListener("click", function () {
+      fetch("/tasks/" + taskId + "/repeat/", {
+        method: "POST",
+        headers: { "X-Requested-With": "XMLHttpRequest", "X-CSRFToken": csrf(), "Content-Type": "application/x-www-form-urlencoded" },
+        body: "due_date=" + encodeURIComponent(box.querySelector("input").value),
+      }).then(() => location.reload());
+    });
+  }
+
   // ---- быстрая смена статуса (AJAX) ----
   document.querySelectorAll("[data-ajax-form]").forEach(function (form) {
     form.addEventListener("submit", function (e) {
@@ -340,8 +426,9 @@
       const r = anchor.getBoundingClientRect();
       pop.classList.add("show");
       const pr = pop.getBoundingClientRect();
-      let top = r.bottom + 6;
-      if (top + pr.height > window.innerHeight - 8) top = Math.max(8, r.top - pr.height - 6);
+      // Без зазора — чтобы мышь не проходила «мёртвую зону» между кнопкой и меню.
+      let top = r.bottom;
+      if (top + pr.height > window.innerHeight - 8) top = Math.max(8, r.top - pr.height);
       let left = r.left;
       if (left + pr.width > window.innerWidth - 8) left = window.innerWidth - pr.width - 8;
       pop.style.top = top + "px";
@@ -355,7 +442,8 @@
     }
     function scheduleClose(pop) {
       clearTimeout(timers.get(pop));
-      timers.set(pop, setTimeout(() => pop.classList.remove("show"), 180));
+      // Долгая пауза — меню не должно исчезать, пока ведёшь мышь к нужной опции.
+      timers.set(pop, setTimeout(() => pop.classList.remove("show"), 450));
     }
     document.querySelectorAll("[data-hmenu]").forEach(function (wrap) {
       const trigger = wrap.querySelector(".hmenu-trigger");
@@ -534,6 +622,14 @@
     let targetCell = null;
     let bulkIds = null; // массив id при добавлении задачи нескольким
 
+    taskModal.querySelectorAll("[data-task-tpl]").forEach(function (chip) {
+      chip.addEventListener("click", function () {
+        const inp = form.querySelector("#tm_title");
+        inp.value = chip.textContent.trim();
+        inp.focus();
+      });
+    });
+
     function prepModal(url, label, title) {
       form.action = url;
       clientLabel.textContent = label;
@@ -649,9 +745,35 @@
             btn.classList.toggle("done", willBeDone);
             item.classList.toggle("is-done", willBeDone);
             form.querySelector('[name="status"]').value = willBeDone ? "new" : "done";
+            if (willBeDone && d.repeat_title) offerRepeat(item, d.repeat_title);
           });
       });
     });
+
+    // После «Выполнено» — предложить ту же задачу с новой датой (не создавать заново).
+    function offerRepeat(item, title) {
+      if (item.querySelector(".trepeat")) return;
+      const taskId = item.dataset.taskId;
+      const d = new Date();
+      d.setDate(d.getDate() + 7);
+      const def = d.toISOString().slice(0, 10);
+      const box = document.createElement("div");
+      box.className = "trepeat";
+      box.innerHTML =
+        '<span>↻ Повторить «' + title.replace(/</g, "&lt;") + '»</span>' +
+        '<input type="date" value="' + def + '">' +
+        '<button type="button" class="btn sm">Создать</button>' +
+        '<button type="button" class="btn ghost sm" data-x>✕</button>';
+      item.after(box);
+      box.querySelector("[data-x]").addEventListener("click", () => box.remove());
+      box.querySelector(".btn:not(.ghost)").addEventListener("click", function () {
+        fetch("/tasks/" + taskId + "/repeat/", {
+          method: "POST",
+          headers: { "X-Requested-With": "XMLHttpRequest", "X-CSRFToken": csrf(), "Content-Type": "application/x-www-form-urlencoded" },
+          body: "due_date=" + encodeURIComponent(box.querySelector("input").value),
+        }).then(() => location.reload());
+      });
+    }
 
     // текст задачи — клик → курсор → правка
     tlist.querySelectorAll(".ttext").forEach(function (el) {

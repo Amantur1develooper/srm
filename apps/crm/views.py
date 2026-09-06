@@ -59,6 +59,16 @@ User = get_user_model()
 
 IMPORT_DIR = Path(settings.MEDIA_ROOT) / "imports"
 
+# Готовые тексты задач — можно выбрать в один клик, либо написать свой.
+TASK_TEMPLATES = [
+    "Узнать, чего хочет и что есть",
+    "Узнать, актуально или нет",
+    "Отправить планировку",
+    "Отправить канал",
+    "Позвонить клиенту",
+    "Пригласить на просмотр",
+]
+
 
 # --------------------------------------------------------------------------- #
 #  Dashboard
@@ -102,6 +112,9 @@ def dashboard(request):
         "feed": feed_qs[:30],
         "feed_total": feed_qs.count(),
         "stages": Stage.objects.filter(is_active=True),  # для смены стадии прямо в строке
+        "managers": User.objects.filter(is_active=True, role="manager").order_by("first_name", "username"),
+        "funnels": Funnel.objects.filter(is_active=True),
+        "sources": Client.Source.choices,
         "clients_total": clients.count(),
         "tasks_today": open_tasks.filter(due_date=today).count(),
         "tasks_overdue": open_tasks.filter(due_date__lt=today).count(),
@@ -118,6 +131,8 @@ def client_list(request):
     user = request.user
     qs = clients_for(user)
     qs = _apply_client_filters(request, qs, user)
+    # Запоминаем состояние списка, чтобы вернуться к тем же фильтрам из карточки лида.
+    request.session["client_list_qs"] = request.GET.urlencode()
 
     sort = request.GET.get("sort", "-created_at")
     allowed_sort = {
@@ -132,7 +147,8 @@ def client_list(request):
     ).order_by("due_date", "due_time")
     qs = qs.prefetch_related(Prefetch("tasks", queryset=open_tasks_qs, to_attr="open_tasks"))
 
-    paginator = Paginator(qs, 100)
+    per_page = 100 if request.GET.get("per_page") != "40" else 40
+    paginator = Paginator(qs, per_page)
     page = paginator.get_page(request.GET.get("page"))
 
     ctx = {
@@ -154,6 +170,9 @@ def client_list(request):
         "manager_counts": dict(_client_counts_by(clients_for(user), "manager_id")),
         "funnel_counts": dict(_client_counts_by(clients_for(user), "funnel__slug")),
         "source_counts": dict(_client_counts_by(clients_for(user), "source")),
+        "task_templates": TASK_TEMPLATES,
+        "per_page": per_page,
+        "qs_base": _querystring(request, exclude=["page", "per_page"]),
     }
     return render(request, "crm/client_list.html", ctx)
 
@@ -287,16 +306,18 @@ def client_bulk_action(request):
 def client_detail(request, pk):
     client = get_object_or_404(clients_for(request.user), pk=pk)
     ensure_client_access(request.user, client)
+    back_qs = request.session.get("client_list_qs", "")
     ctx = {
         "client": client,
         "history": client.history.select_related("user")[:100],
-        "comments": client.comments.select_related("author"),
         "tasks": client.tasks.select_related("manager").order_by("status", "due_date"),
-        "client_messages": client.messages.select_related("template").order_by("-created_at")[:20],
-        "comment_form": CommentForm(),
         "task_form": QuickTaskForm(),
         "stages": Stage.objects.filter(is_active=True),
-        "templates": MessageTemplate.objects.filter(is_active=True),
+        "managers": User.objects.filter(is_active=True, role="manager").order_by("first_name"),
+        "funnels": Funnel.objects.filter(is_active=True),
+        "sources": Client.Source.choices,
+        "task_templates": TASK_TEMPLATES,
+        "back_url": reverse("client_list") + ("?" + back_qs if back_qs else ""),
     }
     return render(request, "crm/client_detail.html", ctx)
 
@@ -531,16 +552,41 @@ def client_whatsapp(request, pk):
 
 # Поля, которые можно редактировать прямо на месте (клик → курсор → ввод), как в Excel.
 INLINE_EDITABLE_FIELDS = {"full_name", "phone", "looking_for", "what_has", "comment"}
+INLINE_EDITABLE_FK = {"manager", "funnel"}
+INLINE_EDITABLE_CHOICE = {"source": Client.Source}
 
 
 @login_required
 @require_POST
 def client_inline_update(request, pk):
-    """Сохранить одно поле клиента без открытия карточки (Канбан/Список)."""
+    """Сохранить одно поле клиента без открытия карточки (Канбан/Список/карточка)."""
     client = get_object_or_404(clients_for(request.user), pk=pk)
     ensure_client_access(request.user, client)
     field = request.POST.get("field", "")
     value = request.POST.get("value", "").strip()
+    labels = {"full_name": "ФИО", "phone": "Телефон", "looking_for": "Что ищет",
+              "what_has": "Что есть", "comment": "Комментарий", "manager": "Менеджер",
+              "funnel": "Воронка", "source": "Источник"}
+
+    if field in INLINE_EDITABLE_CHOICE:
+        choices = INLINE_EDITABLE_CHOICE[field]
+        if value and value not in choices.values:
+            return HttpResponseBadRequest("bad value")
+        setattr(client, field, value or choices.UNKNOWN)
+        client.save(update_fields=[field, "updated_at"])
+        log_history(client, ClientHistory.Kind.FIELD, f"{labels[field]}: {client.get_source_display()}", request.user)
+        return JsonResponse({"ok": True, "label": client.get_source_display(), "changed": True})
+
+    if field in INLINE_EDITABLE_FK:
+        if field == "manager":
+            obj = User.objects.filter(pk=value, role="manager").first() if value else None
+        else:
+            obj = Funnel.objects.filter(pk=value).first() if value else None
+        setattr(client, f"{field}_id", obj.pk if obj else None)
+        client.save(update_fields=[f"{field}_id", "updated_at"])
+        log_history(client, ClientHistory.Kind.FIELD, f"{labels[field]}: {obj or '—'}", request.user)
+        return JsonResponse({"ok": True, "label": str(obj) if obj else "—", "changed": True})
+
     if field not in INLINE_EDITABLE_FIELDS:
         return HttpResponseBadRequest("bad field")
     if field == "full_name" and not value:
@@ -550,8 +596,6 @@ def client_inline_update(request, pk):
         return JsonResponse({"ok": True, "value": value, "changed": False})
     setattr(client, field, value)
     client.save(update_fields=[field, "updated_at"])
-    labels = {"full_name": "ФИО", "phone": "Телефон", "looking_for": "Что ищет",
-              "what_has": "Что есть", "comment": "Комментарий"}
     log_history(client, ClientHistory.Kind.FIELD, f"{labels.get(field, field)} изменено", request.user)
     return JsonResponse({"ok": True, "value": value, "changed": True})
 
@@ -735,12 +779,35 @@ def task_set_status(request, pk):
     task.save(update_fields=["status", "completed_at", "updated_at"])
     log_history(task.client, ClientHistory.Kind.TASK, f"Задача «{task.title}»: {task.get_status_display()}", request.user)
     if request.headers.get("x-requested-with") == "XMLHttpRequest":
-        return JsonResponse({"ok": True, "status": task.get_status_display()})
+        return JsonResponse({
+            "ok": True,
+            "status": task.get_status_display(),
+            "done": status == Task.Status.DONE,
+            "repeat_title": task.title if status == Task.Status.DONE else "",
+        })
     flash.success(request, "Статус обновлён")
     return redirect(request.META.get("HTTP_REFERER") or task.get_absolute_url())
 
 
-TASK_INLINE_EDITABLE_FIELDS = {"title", "due_date", "due_time"}
+@login_required
+@require_POST
+def task_repeat(request, pk):
+    """Повторить задачу с новой датой (после «Выполнено» не создавать заново вручную)."""
+    task = get_object_or_404(tasks_for(request.user), pk=pk)
+    due = request.POST.get("due_date", "")
+    new = Task.objects.create(
+        title=task.title,
+        client=task.client,
+        manager=task.manager,
+        comment=task.comment,
+        due_date=due or None,
+        created_by=request.user,
+    )
+    log_history(task.client, ClientHistory.Kind.TASK, f"Повтор задачи: {new.title}", request.user)
+    return JsonResponse({"ok": True, "id": new.id})
+
+
+TASK_INLINE_EDITABLE_FIELDS = {"title", "due_date", "due_time", "comment"}
 
 
 @login_required

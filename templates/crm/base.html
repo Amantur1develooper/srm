@@ -26,13 +26,6 @@
         {% if nav_notifications %}<span class="badge red nav-badge">{{ nav_notifications }}</span>{% endif %}
       </a>
 
-      <div class="nav-sep">Ещё</div>
-      <a href="{% url 'message_list' %}" class="{% if '/messages' in request.path %}active{% endif %}"><span class="ico" style="background:#30d15833">💬</span> Сообщения
-        {% if nav_prepared_messages %}<span class="badge indigo nav-badge">{{ nav_prepared_messages }}</span>{% endif %}
-      </a>
-      <a href="{% url 'broadcast_start' %}" class="{% if '/broadcast' in request.path %}active{% endif %}"><span class="ico" style="background:#bf5af233">📣</span> Рассылка</a>
-      <a href="{% url 'template_list' %}" class="{% if '/templates' in request.path %}active{% endif %}"><span class="ico" style="background:#5e5ce633">📝</span> Шаблоны</a>
-
       {% if user.can_manage_settings or user.is_head_role %}
       <div class="nav-sep">Настройки</div>
       <a href="{% url 'import_upload' %}" class="{% if '/import' in request.path %}active{% endif %}"><span class="ico" style="background:#30b0c733">📥</span> Импорт Excel</a>
@@ -80,7 +73,7 @@
   <a href="{% url 'client_list' %}" class="{% if '/clients' in request.path %}active{% endif %}"><span class="ico">📋</span>Список</a>
   <a href="{% url 'kanban' %}" class="{% if '/kanban' in request.path %}active{% endif %}"><span class="ico">🗂️</span>Канбан</a>
   <a href="{% url 'task_list' %}" class="{% if '/tasks' in request.path %}active{% endif %}" style="position:relative"><span class="ico">✅</span>Задачи{% if nav_tasks_overdue %}<span class="badge red">{{ nav_tasks_overdue }}</span>{% endif %}</a>
-  <a href="{% url 'notifications' %}" class="{% if '/notifications' in request.path or '/messages' in request.path or '/templates' in request.path %}active{% endif %}" style="position:relative"><span class="ico">🔔</span>Ещё{% if nav_notifications %}<span class="badge red">{{ nav_notifications }}</span>{% endif %}</a>
+  <a href="{% url 'notifications' %}" class="{% if '/notifications' in request.path %}active{% endif %}" style="position:relative"><span class="ico">🔔</span>Ещё{% if nav_notifications %}<span class="badge red">{{ nav_notifications }}</span>{% endif %}</a>
 </nav>
 
 {% if user.is_authenticated %}

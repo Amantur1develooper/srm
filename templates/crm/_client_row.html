@@ -1,41 +1,73 @@
 {% comment %}
-Строка клиента для «Списка» и «Главного». Ожидает в контексте: c (Client), stages.
-Всё упаковано влево, без растянутого пространства: телефон → ищет/есть →
-воронка · источник · менеджер → задача, затем стадия и WhatsApp вплотную.
+Строка клиента для «Списка» и «Главного». Ожидает в контексте:
+  c (Client), stages, managers, funnels, sources.
+Всё редактируется прямо в строке (клик → курсор / выбор → готово), как в Excel.
+Клик по пустому месту строки — открывает карточку. Клик по номеру — копирует.
 {% endcomment %}
 <div class="ios-row tap" data-row data-select-row data-href="{{ c.get_absolute_url }}">
   <span class="sel"><input type="checkbox" name="client_ids" value="{{ c.id }}"></span>
   <span class="lead" style="background:{{ c.stage.color }}">{{ c.full_name|slice:':1'|upper }}</span>
   <span class="body">
     <span class="ttl">
-      {% if c.phone %}<button type="button" class="phone-copy" data-copy="{{ c.phone }}" onclick="event.stopPropagation()" title="Скопировать номер">{{ c.phone }}</button>{% else %}<span class="muted">без телефона</span>{% endif %}
+      <span class="kf name-kf" contenteditable="true" data-inline-edit
+            data-url="{% url 'client_inline_update' c.id %}" data-field="full_name"
+            data-placeholder="Без имени" onclick="event.stopPropagation()">{{ c.full_name }}</span>
+      {% if c.phone %}
+        <button type="button" class="phone-copy" data-copy="{{ c.phone }}" onclick="event.stopPropagation()" title="Скопировать номер">{{ c.phone }}</button>
+      {% else %}
+        <span class="muted">без телефона</span>
+      {% endif %}
     </span>
+
     <span class="sub">
       {% if c.looking_for %}Ищет: {{ c.looking_for|truncatechars:22 }}{% endif %}
       {% if c.what_has %}{% if c.looking_for %} · {% endif %}Есть: {{ c.what_has|truncatechars:22 }}{% endif %}
       {% if not c.looking_for and not c.what_has %}—{% endif %}
     </span>
+
     <span class="sub rowmeta">
+      {% if funnels %}
+      <select class="row-sel" data-inline-change data-url="{% url 'client_inline_update' c.id %}" data-field="funnel" title="Воронка">
+        <option value="">воронка</option>
+        {% for f in funnels %}<option value="{{ f.id }}" {% if f.id == c.funnel_id %}selected{% endif %}>{{ f.name }}</option>{% endfor %}
+      </select>
+      <select class="row-sel" data-inline-change data-url="{% url 'client_inline_update' c.id %}" data-field="source" title="Источник">
+        {% for val, label in sources %}<option value="{{ val }}" {% if val == c.source %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+      <select class="row-sel" data-inline-change data-url="{% url 'client_inline_update' c.id %}" data-field="manager" title="Менеджер">
+        <option value="">менеджер</option>
+        {% for m in managers %}<option value="{{ m.id }}" {% if m.id == c.manager_id %}selected{% endif %}>{{ m.display_name }}</option>{% endfor %}
+      </select>
+      {% else %}
       {% if c.funnel %}{{ c.funnel.name }}{% endif %}
       {% if c.source and c.source != 'unknown' %}{% if c.funnel %} · {% endif %}{{ c.get_source_display }}{% endif %}
-      {% if c.manager %}{% if c.funnel or c.source and c.source != 'unknown' %} · {% endif %}{{ c.manager.display_name }}{% endif %}
-      {% if not c.funnel and not c.manager and c.source == 'unknown' %}<span class="muted-2">—</span>{% endif %}
+      {% if c.manager %} · {{ c.manager.display_name }}{% endif %}
+      {% endif %}
     </span>
+
     {% with t=c.open_tasks.0 %}
     {% if t %}
-      <span class="sub"><span class="task-dot {{ t.due_tone }}"></span>
-        <span class="{{ t.due_tone }}">{{ t.due_human }}{% if t.due_time %}, {{ t.due_time|time:"H:i" }}{% endif %}</span>
-        — {{ t.title|truncatechars:26 }}{% if c.open_tasks|length > 1 %} <span class="task-more">+{{ c.open_tasks|length|add:"-1" }}</span>{% endif %}
+      <span class="sub task-sub">
+        <span class="task-dot {{ t.due_tone }}"></span>
+        <input type="date" class="rowdate {{ t.due_tone }}" value="{{ t.due_date|date:'Y-m-d' }}"
+               data-inline-change data-url="{% url 'task_inline_update' t.id %}" data-field="due_date" title="Срок задачи">
+        <span class="kf task-kf" contenteditable="true" data-inline-edit
+              data-url="{% url 'task_inline_update' t.id %}" data-field="title"
+              data-placeholder="задача" onclick="event.stopPropagation()">{{ t.title }}</span>
+        {% if c.open_tasks|length > 1 %}<span class="task-more">+{{ c.open_tasks|length|add:"-1" }}</span>{% endif %}
       </span>
     {% else %}
-      <span class="sub">
+      <span class="sub task-sub">
         <button type="button" class="task-add" data-add-task data-url="{% url 'client_add_task' c.id %}"
                 data-client="{{ c.full_name }}" onclick="event.stopPropagation()">＋ задача</button>
-        {% if c.comment %}<span class="muted"> · {{ c.comment|truncatechars:28 }}</span>{% endif %}
+        <span class="kf cmt-kf" contenteditable="true" data-inline-edit
+              data-url="{% url 'client_inline_update' c.id %}" data-field="comment"
+              data-placeholder="комментарий" onclick="event.stopPropagation()">{{ c.comment }}</span>
       </span>
     {% endif %}
     {% endwith %}
   </span>
+
   <span class="trail">
     <div class="hmenu" data-hmenu data-stage-hmenu data-url="{% url 'client_change_stage' c.id %}" onclick="event.stopPropagation()">
       <button type="button" class="hmenu-trigger stage-pill-btn" style="background:{{ c.stage.color }}">{{ c.stage.name }} ▾</button>

@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page-head">
   <div><h1>Задачи</h1></div>
-  <div class="actions"><a href="{% url 'task_create' %}" class="btn">＋</a></div>
+  <div class="actions"><a href="{% url 'task_create' %}" class="btn secondary sm">＋ Задача</a></div>
 </div>
 
 <div class="chips" style="margin-bottom:var(--sp-3)">
@@ -35,14 +35,24 @@
 
 <div class="tlist" data-inline-url="{% url 'task_inline_update' 0 %}">
   {% for t in tasks %}
+  {% ifchanged t.due_date %}
+  <div class="tgroup">{% if t.due_date %}{{ t.due_date|date:"j E, l"|capfirst }}{% else %}Без срока{% endif %}</div>
+  {% endifchanged %}
   <div class="titem tone-{{ t.due_tone }}{% if t.status == 'done' %} is-done{% endif %}" data-task-id="{{ t.id }}" data-row-link="{{ t.get_absolute_url }}">
     <form method="post" action="{% url 'task_set_status' t.id %}" data-tcheck-form class="tcheck-form">{% csrf_token %}
       <input type="hidden" name="status" value="{% if t.status == 'done' %}new{% else %}done{% endif %}">
       <button type="submit" class="tcheck2{% if t.status == 'done' %} done{% endif %}" aria-label="Выполнено"></button>
     </form>
-    <span class="ttext kf" contenteditable data-field="title" data-task-id="{{ t.id }}">{{ t.title }}</span>
-    <input type="date" class="tdate" data-field="due_date" data-task-id="{{ t.id }}" value="{{ t.due_date|date:'Y-m-d' }}">
-    <a href="{{ t.client.get_absolute_url }}" class="tclient">{{ t.client.full_name }}</a>
+    <span class="tmain">
+      <span class="trow1">
+        <span class="ttext kf" contenteditable data-field="title" data-task-id="{{ t.id }}">{{ t.title }}</span>
+        <input type="date" class="tdate" data-field="due_date" data-task-id="{{ t.id }}" value="{{ t.due_date|date:'Y-m-d' }}">
+        <a href="{{ t.client.get_absolute_url }}" class="tclient">{{ t.client.full_name }}</a>
+      </span>
+      <span class="tcmt kf" contenteditable data-inline-edit
+            data-url="{% url 'task_inline_update' t.id %}" data-field="comment"
+            data-placeholder="заметка…">{{ t.comment }}</span>
+    </span>
   </div>
   {% empty %}
   <div class="empty"><div class="big">✅</div>Задач в этой вкладке нет</div>

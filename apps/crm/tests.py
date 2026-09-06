@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-from .models import Client, Message, Stage, Task
+from .models import Client, Funnel, Message, Stage, Task
 from .services import excel_import
 from .utils import normalize_phone, parse_ru_date, render_template
 
@@ -197,6 +197,40 @@ class AccessTests(TestCase):
             HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
         self.assertEqual(resp.status_code, 404)
+
+    def test_inline_update_source_and_fk(self):
+        self.client.login(username="m1", password="x")
+        funnel = Funnel.objects.create(name="Эл Насип", slug="el-nasip")
+        r = self.client.post(
+            f"/clients/{self.c1.id}/inline/", {"field": "source", "value": "instagram"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(r.status_code, 200)
+        r = self.client.post(
+            f"/clients/{self.c1.id}/inline/", {"field": "funnel", "value": funnel.id},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(r.status_code, 200)
+        self.c1.refresh_from_db()
+        self.assertEqual(self.c1.source, "instagram")
+        self.assertEqual(self.c1.funnel_id, funnel.id)
+        # мусорное значение источника отклоняется
+        r = self.client.post(
+            f"/clients/{self.c1.id}/inline/", {"field": "source", "value": "bogus"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(r.status_code, 400)
+
+    def test_task_inline_comment_and_repeat(self):
+        self.client.login(username="m1", password="x")
+        task = Task.objects.create(title="Позвонить", client=self.c1, manager=self.m1)
+        r = self.client.post(f"/tasks/{task.id}/inline/", {"field": "comment", "value": "до обеда"})
+        self.assertEqual(r.status_code, 200)
+        task.refresh_from_db()
+        self.assertEqual(task.comment, "до обеда")
+        r = self.client.post(f"/tasks/{task.id}/repeat/", {"due_date": "2026-09-20"})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(Task.objects.filter(client=self.c1, title="Позвонить").count(), 2)
 
     def test_quick_create_in_kanban(self):
         self.client.login(username="m1", password="x")

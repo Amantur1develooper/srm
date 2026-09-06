@@ -3,17 +3,22 @@
 {% block content %}
 <div class="page-head">
   <div>
-    <a href="{% url 'client_list' %}" class="muted">← Список</a>
-    <h1 style="margin-top:4px">{{ client.full_name }}
+    <a href="{{ back_url }}" class="muted">← Список</a>
+    <h1 style="margin-top:4px">
+      <span class="kf" contenteditable="true" data-inline-edit
+            data-url="{% url 'client_inline_update' client.id %}" data-field="full_name"
+            data-placeholder="Без имени">{{ client.full_name }}</span>
       <span class="stage-pill" style="background:{{ client.stage.color }};font-size:13px;vertical-align:middle">{{ client.stage.name }}</span>
     </h1>
-    <small class="mono">{{ client.phone }}{% if client.phone_extra %} · доп. {{ client.phone_extra }}{% endif %}</small>
+    {% if client.phone %}
+    <button type="button" class="phone-copy mono" data-copy="{{ client.phone }}" title="Скопировать номер">{{ client.phone }}</button>
+    {% else %}<small class="muted">без телефона</small>{% endif %}
   </div>
   <div class="actions">
     {% if client.wa_number %}
     <a class="btn wa lg" target="_blank" href="{% url 'client_whatsapp' client.id %}">🟢 WhatsApp</a>
     {% endif %}
-    <a class="btn secondary" href="{% url 'client_edit' client.id %}">✏️ Редактировать</a>
+    <a class="btn secondary" href="{% url 'client_edit' client.id %}">✏️ Форма</a>
     <form method="post" action="{% url 'client_bulk' %}" onsubmit="return confirm('Удалить {{ client.full_name }} без возможности восстановления?')">
       {% csrf_token %}
       <input type="hidden" name="client_ids" value="{{ client.id }}">
@@ -22,131 +27,154 @@
   </div>
 </div>
 
-<div class="split">
-  <div class="stack">
-    <!-- смена стадии -->
-    <div class="card pad row">
-      <b>Стадия:</b>
-      <div class="hmenu" data-hmenu data-stage-hmenu data-url="{% url 'client_change_stage' client.id %}">
-        <button type="button" class="hmenu-trigger stage-pill-btn" style="background:{{ client.stage.color }}">{{ client.stage.name }} ▾</button>
-        <div class="hmenu-pop">
-          {% for s in stages %}
-          <button type="button" class="stage-opt {% if s.id == client.stage_id %}current{% endif %}"
-                  data-stage-id="{{ s.id }}" data-color="{{ s.color }}" data-name="{{ s.name }}" data-lost="{% if s.is_lost %}1{% else %}0{% endif %}">
-            <span class="stage-dot" style="background:{{ s.color }}"></span>{{ s.name }}
-          </button>
-          {% endfor %}
-        </div>
-      </div>
-      {% if client.lost_reason %}<span class="badge red">Причина: {{ client.lost_reason }}</span>{% endif %}
-      <span class="sp" style="flex:1"></span>
-      {% if client.next_step %}<span class="muted">Следующий шаг: <b>{{ client.next_step }}</b>{% if client.next_step_at %} — {{ client.next_step_at|date:"d.m.Y H:i" }}{% endif %}</span>{% endif %}
-    </div>
-
-    <!-- инфо -->
-    <div class="card">
-      <div class="card-h">Основная информация</div>
-      <div class="card-b">
-        <dl class="dl">
-          <dt>Телефон</dt><dd class="mono">{{ client.phone|default:"—" }}</dd>
-          <dt>Дата обращения</dt><dd>{{ client.first_contact_date|date:"d.m.Y"|default:"—" }}</dd>
-          <dt>Менеджер</dt><dd>{{ client.manager.display_name|default:"не назначен" }}</dd>
-          <dt>Что ищет</dt><dd>{{ client.looking_for|linebreaksbr|default:"—" }}</dd>
-          <dt>Что есть</dt><dd>{{ client.what_has|linebreaksbr|default:"—" }}</dd>
-          <dt>Комментарий</dt><dd>{{ client.comment|linebreaksbr|default:"—" }}</dd>
-        </dl>
-      </div>
-    </div>
-
-    <!-- задачи -->
-    <div class="card">
-      <div class="card-h">Задачи <span class="badge">{{ tasks|length }}</span></div>
-      <div class="card-b stack">
-        {% for t in tasks %}
-        <div class="row" style="justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:8px">
-          <div>
-            <a href="{{ t.get_absolute_url }}"><b>{{ t.title }}</b></a>
-            <span class="badge {% if t.status == 'done' %}green{% elif t.is_overdue %}red{% else %}amber{% endif %}">{{ t.get_status_display }}</span><br>
-            <small>{% if t.due_date %}{{ t.due_date|date:"d.m.Y" }}{% if t.due_time %} {{ t.due_time|time:"H:i" }}{% endif %}{% else %}без срока{% endif %}{% if t.comment %} · {{ t.comment|truncatechars:60 }}{% endif %}</small>
+<div class="detail-grid">
+  <!-- основная информация -->
+  <div class="card">
+    <div class="card-h">Основная информация</div>
+    <div class="card-b">
+      <dl class="dl">
+        <dt>Стадия</dt>
+        <dd>
+          <div class="hmenu" data-hmenu data-stage-hmenu data-url="{% url 'client_change_stage' client.id %}">
+            <button type="button" class="hmenu-trigger stage-pill-btn" style="background:{{ client.stage.color }}">{{ client.stage.name }} ▾</button>
+            <div class="hmenu-pop">
+              {% for s in stages %}
+              <button type="button" class="stage-opt {% if s.id == client.stage_id %}current{% endif %}"
+                      data-stage-id="{{ s.id }}" data-color="{{ s.color }}" data-name="{{ s.name }}" data-lost="{% if s.is_lost %}1{% else %}0{% endif %}">
+                <span class="stage-dot" style="background:{{ s.color }}"></span>{{ s.name }}
+              </button>
+              {% endfor %}
+            </div>
           </div>
-          {% if t.is_open %}
-          <form method="post" action="{% url 'task_set_status' t.id %}">{% csrf_token %}
-            <input type="hidden" name="status" value="done">
-            <button class="btn success sm">✓ Выполнена</button>
-          </form>
-          {% endif %}
-        </div>
-        {% empty %}<div class="muted">Задач нет</div>{% endfor %}
+          {% if client.lost_reason %}<span class="badge red">Причина: {{ client.lost_reason }}</span>{% endif %}
+        </dd>
 
-        <form method="post" action="{% url 'client_add_task' client.id %}" class="stack" style="border-top:1px solid var(--border);padding-top:var(--sp-3)">
-          {% csrf_token %}
-          <b>Новая задача</b>
-          <input class="field-input" name="title" placeholder="Что сделать (напр. Позвонить клиенту)" required>
-          <div class="row">
-            <input class="field-input" style="max-width:170px" type="date" name="due_date">
-            <input class="field-input" style="max-width:130px" type="time" name="due_time">
-            <button class="btn sm">Создать задачу</button>
-          </div>
-          <input class="field-input" name="comment" placeholder="Комментарий (необязательно)">
-        </form>
-      </div>
-    </div>
+        <dt>Телефон</dt>
+        <dd class="mono kf" contenteditable="true" data-inline-edit
+            data-url="{% url 'client_inline_update' client.id %}" data-field="phone"
+            data-placeholder="—">{{ client.phone }}</dd>
 
-    <!-- сообщения -->
-    <div class="card">
-      <div class="card-h">Сообщения</div>
-      <div class="card-b stack">
-        <form method="get" action="{% url 'client_whatsapp' client.id %}" target="_blank" class="row">
-          <select class="field-input field-select" style="max-width:240px" name="template">
-            <option value="">— без шаблона —</option>
-            {% for tpl in templates %}<option value="{{ tpl.id }}">{{ tpl.name }}</option>{% endfor %}
+        <dt>Менеджер</dt>
+        <dd>
+          <select class="inline-select" data-inline-change
+                  data-url="{% url 'client_inline_update' client.id %}" data-field="manager">
+            <option value="">не назначен</option>
+            {% for m in managers %}
+            <option value="{{ m.id }}" {% if m.id == client.manager_id %}selected{% endif %}>{{ m.display_name }}</option>
+            {% endfor %}
           </select>
-          <button class="btn wa sm" {% if not client.wa_number %}disabled{% endif %}>🟢 Открыть WhatsApp с текстом</button>
-        </form>
-        {% for m in client_messages %}
-        <div style="border-bottom:1px solid var(--border);padding-bottom:8px">
-          <div class="row" style="justify-content:space-between">
-            <small><b>{{ m.template.name|default:"Свободный текст" }}</b> · {{ m.created_at|date:"d.m H:i" }}</small>
-            <span class="badge {% if m.status == 'sent_manual' %}green{% elif m.status == 'skipped' %}red{% else %}indigo{% endif %}">{{ m.get_status_display }}</span>
-          </div>
-          <div class="muted" style="font-size:13px">{{ m.rendered_text|truncatechars:160 }}</div>
-        </div>
-        {% empty %}<div class="muted">Сообщений ещё не было</div>{% endfor %}
-      </div>
-    </div>
+        </dd>
 
-    <!-- комментарии -->
-    <div class="card">
-      <div class="card-h">Комментарии</div>
-      <div class="card-b stack">
-        <form method="post" action="{% url 'client_add_comment' client.id %}" class="stack">
-          {% csrf_token %}
-          {{ comment_form.text }}
-          <button class="btn sm" style="align-self:flex-start">Добавить</button>
-        </form>
-        {% for c in comments %}
-        <div style="border-top:1px solid var(--border);padding-top:8px">
-          <small class="muted">{{ c.author.display_name|default:"—" }} · {{ c.created_at|date:"d.m.Y H:i" }}</small>
-          <div>{{ c.text|linebreaksbr }}</div>
-        </div>
-        {% empty %}<div class="muted">Комментариев нет</div>{% endfor %}
-      </div>
+        <dt>Воронка</dt>
+        <dd>
+          <select class="inline-select" data-inline-change
+                  data-url="{% url 'client_inline_update' client.id %}" data-field="funnel">
+            <option value="">—</option>
+            {% for f in funnels %}
+            <option value="{{ f.id }}" {% if f.id == client.funnel_id %}selected{% endif %}>{{ f.name }}</option>
+            {% endfor %}
+          </select>
+        </dd>
+
+        <dt>Источник</dt>
+        <dd>
+          <select class="inline-select" data-inline-change
+                  data-url="{% url 'client_inline_update' client.id %}" data-field="source">
+            {% for val, label in sources %}
+            <option value="{{ val }}" {% if val == client.source %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </dd>
+        <dt>Дата обращения</dt><dd>{{ client.first_contact_date|date:"d.m.Y"|default:"—" }}</dd>
+
+        <dt>Что ищет</dt>
+        <dd class="kf" contenteditable="true" data-inline-edit data-multiline="1"
+            data-url="{% url 'client_inline_update' client.id %}" data-field="looking_for"
+            data-placeholder="—">{{ client.looking_for }}</dd>
+
+        <dt>Что есть</dt>
+        <dd class="kf" contenteditable="true" data-inline-edit data-multiline="1"
+            data-url="{% url 'client_inline_update' client.id %}" data-field="what_has"
+            data-placeholder="—">{{ client.what_has }}</dd>
+
+        <dt>Комментарий</dt>
+        <dd class="kf" contenteditable="true" data-inline-edit data-multiline="1"
+            data-url="{% url 'client_inline_update' client.id %}" data-field="comment"
+            data-placeholder="—">{{ client.comment }}</dd>
+      </dl>
     </div>
   </div>
 
-  <!-- история -->
+  <!-- задачи -->
   <div class="card">
-    <div class="card-h">История</div>
-    <div class="card-b">
-      <ul class="timeline">
-        {% for h in history %}
-        <li>
-          <div class="t-time">{{ h.created_at|date:"d.m.Y H:i" }} · {{ h.user.display_name|default:"система" }}</div>
-          <div class="t-text">{{ h.get_kind_display }}: {{ h.text }}</div>
-        </li>
-        {% empty %}<li class="muted">История пуста</li>{% endfor %}
-      </ul>
+    <div class="card-h">Задачи <span class="badge">{{ tasks|length }}</span></div>
+    <div class="card-b stack">
+      {% for t in tasks %}
+      <div class="task-line {% if t.status == 'done' %}is-done{% endif %}">
+        {% if t.is_open %}
+        <form method="post" action="{% url 'task_set_status' t.id %}" data-task-done>{% csrf_token %}
+          <input type="hidden" name="status" value="done">
+          <button class="task-check" type="submit" title="Отметить выполненной">✓</button>
+        </form>
+        {% else %}
+        <span class="task-check done">✓</span>
+        {% endif %}
+        <div class="task-body">
+          <a href="{{ t.get_absolute_url }}" class="task-ttl">{{ t.title }}</a>
+          <small class="{% if t.is_overdue and t.is_open %}red{% else %}muted{% endif %}">
+            {% if t.due_date %}{{ t.due_date|date:"d.m.Y" }}{% if t.due_time %} {{ t.due_time|time:"H:i" }}{% endif %}{% else %}без срока{% endif %}
+            {% if t.comment %} · {{ t.comment|truncatechars:50 }}{% endif %}
+          </small>
+        </div>
+      </div>
+      {% empty %}<div class="muted">Задач нет</div>{% endfor %}
+
+      <form method="post" action="{% url 'client_add_task' client.id %}" class="stack" style="border-top:1px solid var(--sep);padding-top:var(--sp-3)">
+        {% csrf_token %}
+        <input class="field-input" id="cd_task_title" name="title" placeholder="Что сделать" required>
+        <div class="chips" style="flex-wrap:wrap;background:none;padding:0;gap:4px">
+          {% for tpl in task_templates %}
+          <button type="button" class="chip" data-task-tpl>{{ tpl }}</button>
+          {% endfor %}
+        </div>
+        <div class="row">
+          <input class="field-input" style="max-width:150px" type="date" name="due_date">
+          <input class="field-input" style="max-width:110px" type="time" name="due_time">
+          <button class="btn sm">Создать</button>
+        </div>
+        <input class="field-input" name="comment" placeholder="Комментарий (необязательно)">
+      </form>
     </div>
   </div>
 </div>
+
+<!-- история -->
+<div class="card" style="margin-top:var(--sp-6)">
+  <div class="card-h">История</div>
+  <div class="card-b">
+    <ul class="timeline">
+      {% for h in history %}
+      <li>
+        <div class="t-time">{{ h.created_at|date:"d.m.Y H:i" }} · {{ h.user.display_name|default:"система" }}</div>
+        <div class="t-text">{{ h.get_kind_display }}: {{ h.text }}</div>
+      </li>
+      {% empty %}<li class="muted">История пуста</li>{% endfor %}
+    </ul>
+  </div>
+</div>
+
+<script>
+(function () {
+  var box = document.querySelector("[data-task-tpl]");
+  if (box) {
+    document.querySelectorAll("[data-task-tpl]").forEach(function (chip) {
+      chip.addEventListener("click", function () {
+        var inp = document.getElementById("cd_task_title");
+        inp.value = chip.textContent.trim();
+        inp.focus();
+      });
+    });
+  }
+})();
+</script>
 {% endblock %}

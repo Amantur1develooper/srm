@@ -78,10 +78,10 @@
   <input type="hidden" name="source" value="{{ current.source|default:'' }}">
   <input type="hidden" name="sort" value="{{ sort }}">
 
-  <details class="menu"{% if current.date_from or current.date_to or current.created_from or current.created_to %} open{% endif %}>
-    <summary class="btn secondary sm">📅 Даты{% if current.date_from or current.date_to or current.created_from or current.created_to %} •{% endif %}</summary>
-    <div class="menu-pop stack" style="min-width:260px;padding:var(--sp-3)">
-      <div class="form-row">
+  <div class="hmenu filter-hmenu" data-hmenu>
+    <button type="button" class="hmenu-trigger {% if current.date_from or current.date_to or current.created_from or current.created_to %}active{% endif %}">📅 Даты ▾</button>
+    <div class="hmenu-pop" style="min-width:250px;padding:10px">
+      <div class="form-row" style="margin-bottom:8px">
         <label>Дата обращения</label>
         <div class="row" style="gap:6px;flex-wrap:nowrap">
           <input class="field-input" type="date" name="date_from" value="{{ current.date_from|default:'' }}">
@@ -89,7 +89,7 @@
           <input class="field-input" type="date" name="date_to" value="{{ current.date_to|default:'' }}">
         </div>
       </div>
-      <div class="form-row">
+      <div class="form-row" style="margin-bottom:10px">
         <label>Дата создания в CRM</label>
         <div class="row" style="gap:6px;flex-wrap:nowrap">
           <input class="field-input" type="date" name="created_from" value="{{ current.created_from|default:'' }}">
@@ -97,22 +97,27 @@
           <input class="field-input" type="date" name="created_to" value="{{ current.created_to|default:'' }}">
         </div>
       </div>
-      <button class="btn sm" type="submit">Применить</button>
+      <button class="btn sm block" type="submit">Применить</button>
     </div>
-  </details>
+  </div>
 
-  <details class="filters"{% if current.has_task or current.overdue_task or current.has_phone %} open{% endif %}>
-    <summary>Ещё</summary>
-    <div class="filters-grid">
-      <label class="check-inline"><input class="field-check" type="checkbox" name="has_task" value="1" {% if current.has_task == '1' %}checked{% endif %}> Есть задача</label>
-      <label class="check-inline"><input class="field-check" type="checkbox" name="overdue_task" value="1" {% if current.overdue_task == '1' %}checked{% endif %}> Просроченная задача</label>
-      <label class="check-inline"><input class="field-check" type="checkbox" name="has_phone" value="1" {% if current.has_phone == '1' %}checked{% endif %}> С телефоном</label>
-      <div class="row">
-        <button class="btn sm" type="submit">Применить</button>
-        <a href="{% url 'client_list' %}" class="btn ghost sm">Сбросить всё</a>
-      </div>
+  <div class="hmenu filter-hmenu" data-hmenu>
+    <button type="button" class="hmenu-trigger {% if current.has_task or current.overdue_task or current.has_phone %}active{% endif %}">Ещё ▾</button>
+    <div class="hmenu-pop" style="min-width:220px;padding:10px">
+      <label class="check-inline" style="padding:5px 0"><input class="field-check" type="checkbox" name="has_task" value="1" {% if current.has_task == '1' %}checked{% endif %}> Есть задача</label>
+      <label class="check-inline" style="padding:5px 0"><input class="field-check" type="checkbox" name="overdue_task" value="1" {% if current.overdue_task == '1' %}checked{% endif %}> Просроченная задача</label>
+      <label class="check-inline" style="padding:5px 0"><input class="field-check" type="checkbox" name="has_phone" value="1" {% if current.has_phone == '1' %}checked{% endif %}> С телефоном</label>
+      <button class="btn sm block" type="submit" style="margin-top:8px">Применить</button>
     </div>
-  </details>
+  </div>
+
+  <a href="{% url 'client_list' %}" class="btn ghost sm">Сбросить</a>
+  <span class="sp" style="flex:1"></span>
+  <span class="muted" style="font-size:12px">на странице</span>
+  <span class="segbtn">
+    <a href="?{% if qs_base %}{{ qs_base }}&{% endif %}per_page=40" class="btn {% if per_page == 40 %}{% else %}tint{% endif %} sm">40</a>
+    <a href="?{% if qs_base %}{{ qs_base }}&{% endif %}per_page=100" class="btn {% if per_page == 100 %}{% else %}tint{% endif %} sm">100</a>
+  </span>
 </form>
 
 <form method="post" action="{% url 'client_bulk' %}" id="bulkForm">
@@ -212,7 +217,12 @@
       <div class="muted" data-modal-client></div>
       <div class="form-row">
         <label for="tm_title">Задача</label>
-        <input class="field-input" id="tm_title" name="title" required placeholder="Напр. Позвонить клиенту" autocomplete="off">
+        <input class="field-input" id="tm_title" name="title" required placeholder="Напишите свой текст или выберите ниже" autocomplete="off">
+        <div class="chips" style="margin-top:6px;flex-wrap:wrap;background:none;padding:0">
+          {% for tpl in task_templates %}
+          <button type="button" class="chip" data-task-tpl>{{ tpl }}</button>
+          {% endfor %}
+        </div>
       </div>
       <div class="row">
         <div class="form-row" style="flex:1"><label for="tm_date">Дата</label>
