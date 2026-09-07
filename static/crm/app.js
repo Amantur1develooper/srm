@@ -138,7 +138,8 @@
         return;
       }
       const original = btn.textContent;
-      const feedback = btn.classList.contains("kcopy") ? "✓" : "Скопировано";
+      const compact = btn.classList.contains("kcopy") || btn.classList.contains("copy-btn");
+      const feedback = compact ? "✓" : "Скопировано";
       copyText(btn.dataset.copy).then(function () {
         btn.classList.add("copied");
         btn.textContent = feedback;

@@ -11,7 +11,8 @@
       <span class="stage-pill" style="background:{{ client.stage.color }};font-size:13px;vertical-align:middle">{{ client.stage.name }}</span>
     </h1>
     {% if client.phone %}
-    <span class="phone-val mono" data-copy="{{ client.phone }}" title="Клик — скопировать · или выделите и Ctrl+C">{{ client.phone }}</span>
+    <span class="phone-val mono" data-copy="{{ client.phone }}" title="Выделите и Ctrl+C">{{ client.phone }}</span>
+    <button type="button" class="copy-btn" data-copy="{{ client.phone }}" title="Скопировать номер" aria-label="Скопировать номер">⧉</button>
     {% else %}<small class="muted">без телефона</small>{% endif %}
   </div>
   <div class="actions">
@@ -50,9 +51,12 @@
         </dd>
 
         <dt>Телефон</dt>
-        <dd class="mono kf" contenteditable="true" data-inline-edit
-            data-url="{% url 'client_inline_update' client.id %}" data-field="phone"
-            data-placeholder="—">{{ client.phone }}</dd>
+        <dd class="phone-dd">
+          <span class="mono kf" contenteditable="true" data-inline-edit
+                data-url="{% url 'client_inline_update' client.id %}" data-field="phone"
+                data-placeholder="—">{{ client.phone }}</span>
+          {% if client.phone %}<button type="button" class="copy-btn" data-copy="{{ client.phone }}" title="Скопировать номер" aria-label="Скопировать номер">⧉</button>{% endif %}
+        </dd>
 
         <dt>Менеджер</dt>
         <dd>

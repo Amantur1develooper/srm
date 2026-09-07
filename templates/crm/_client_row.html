@@ -14,7 +14,9 @@
             data-placeholder="Без имени" onclick="event.stopPropagation()">{{ c.full_name }}</span>
       {% if c.phone %}
         <span class="phone-val" data-copy="{{ c.phone }}" onmousedown="event.stopPropagation()" onclick="event.stopPropagation()"
-              title="Клик — скопировать · или выделите и Ctrl+C">{{ c.phone }}</span>
+              title="Выделите и Ctrl+C">{{ c.phone }}</span>
+        <button type="button" class="copy-btn" data-copy="{{ c.phone }}" onclick="event.stopPropagation()"
+                title="Скопировать номер" aria-label="Скопировать номер">⧉</button>
       {% else %}
         <span class="muted">без телефона</span>
       {% endif %}

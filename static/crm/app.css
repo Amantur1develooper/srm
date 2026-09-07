@@ -432,7 +432,8 @@ body.selecting .kcard .kcard-open{display:none}
 /* тело не растягивается на всю ширину — всё держится слева, вплотную */
 /* фикс. ширина колонки инфо -> стадия и WhatsApp у всех лидов на одной вертикали (как Excel) */
 .ios-row .body{flex:0 0 auto;min-width:0;width:min(560px,54vw);display:flex;flex-direction:column}
-.ios-row .ttl{display:flex;align-items:baseline;gap:8px;font-weight:600;font-size:14px;letter-spacing:-0.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ios-row .ttl{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px;letter-spacing:-0.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ios-row .ttl .copy-btn{width:18px;height:18px;font-size:10px}
 .ios-row .sub{display:flex;align-items:center;gap:4px;font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
 .ios-row .rowmeta{color:var(--muted);font-weight:500;overflow:visible}
 .ios-row .task-sub{overflow:visible}
@@ -451,6 +452,16 @@ body.selecting .kcard .kcard-open{display:none}
 }
 .phone-val:hover{background:var(--fill-quat)}
 .phone-val.copied{background:var(--success-soft);color:var(--green-d)}
+
+/* маленькая кнопка «скопировать номер» */
+.copy-btn{
+  flex:0 0 auto;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;
+  border:0;border-radius:5px;background:var(--fill);color:var(--muted);font-size:11px;line-height:1;
+  cursor:pointer;font-family:inherit;vertical-align:middle;transition:background .12s,color .12s;
+}
+.copy-btn:hover{background:var(--fill-hover);color:var(--blue)}
+.copy-btn.copied{background:var(--success-soft);color:var(--green-d)}
+.phone-dd{display:flex;align-items:center;gap:8px}
 .ios-row .trail{display:flex;align-items:center;gap:8px;flex:0 0 auto;color:var(--muted);font-size:13px;margin-left:var(--sp-3)}
 .ios-row .trail .hmenu{width:146px;flex:0 0 146px}
 .ios-row .trail .stage-pill-btn{width:100%;text-align:left}
