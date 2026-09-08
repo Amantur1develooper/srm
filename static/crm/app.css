@@ -481,6 +481,9 @@ body.selecting .ios-row .trail{display:none}
 .ios-row .ttl.strike{text-decoration:line-through;color:var(--muted)}
 .ios-row.tone-red{box-shadow:inset 3px 0 0 var(--red)}
 .ios-row.tone-amber{box-shadow:inset 3px 0 0 var(--orange)}
+/* строка клиента, чей номер сейчас скопирован */
+.ios-row.copied-row,
+.ios-row.copied-row:hover{background:var(--blue-tint);box-shadow:inset 3px 0 0 var(--blue)}
 .ios-row.is-done{opacity:.5}
 .ios-row .sub .red{color:var(--red-d);font-weight:600}
 .ios-row .sub .amber{color:var(--orange-d);font-weight:600}

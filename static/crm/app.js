@@ -123,16 +123,38 @@
       }
     });
   }
+  // Подсветить строку клиента, чей номер только что скопировали (одна за раз).
+  function markCopiedRow(row) {
+    document.querySelectorAll(".ios-row.copied-row").forEach(function (r) {
+      if (r !== row) r.classList.remove("copied-row");
+    });
+    if (!row) return;
+    row.classList.add("copied-row");
+    const box = row.querySelector("[name=client_ids]");
+    try { sessionStorage.setItem("copiedClientId", box ? box.value : ""); } catch (e) {}
+  }
+  // Восстановить подсветку после перезагрузки списка / возврата из карточки.
+  try {
+    const savedId = sessionStorage.getItem("copiedClientId");
+    if (savedId) {
+      document.querySelectorAll(".ios-row [name=client_ids]").forEach(function (box) {
+        if (box.value === savedId) box.closest(".ios-row").classList.add("copied-row");
+      });
+    }
+  } catch (e) {}
+
   document.querySelectorAll("[data-copy]").forEach(function (btn) {
     btn.addEventListener("click", function (e) {
       e.stopPropagation();
       // Пользователь выделил номер мышкой — не мешаем, пусть копирует сам (Ctrl+C).
       const sel = window.getSelection && window.getSelection().toString().trim();
       if (sel && btn.contains(window.getSelection().anchorNode)) return;
+      const row = btn.closest(".ios-row");
       // Номер-текст: только подсветка, текст не подменяем (чтобы строка не «прыгала»).
       if (btn.classList.contains("phone-val")) {
         copyText(btn.dataset.copy).then(function () {
           btn.classList.add("copied");
+          markCopiedRow(row);
           setTimeout(function () { btn.classList.remove("copied"); }, 900);
         });
         return;
@@ -142,6 +164,7 @@
       const feedback = compact ? "✓" : "Скопировано";
       copyText(btn.dataset.copy).then(function () {
         btn.classList.add("copied");
+        markCopiedRow(row);
         btn.textContent = feedback;
         setTimeout(function () {
           btn.classList.remove("copied");
