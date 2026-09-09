@@ -8,8 +8,8 @@
       <button type="button" class="btn tint" id="selectToggle">Выбрать</button>
       <button type="button" class="btn tint" data-select-all-now>Выбрать все</button>
     </div>
-    <form method="get" class="row">
-      <input class="field-input" style="max-width:160px" type="search" name="q" placeholder="Имя клиента" value="{{ current.q|default:'' }}">
+    <form method="get" class="row" data-live-search>
+      <input class="field-input" style="max-width:160px" type="search" name="q" placeholder="Имя клиента" value="{{ current.q|default:'' }}" autocomplete="off">
       <select class="field-input field-select" style="max-width:160px" name="manager" onchange="this.form.submit()">
         <option value="">Все менеджеры</option>
         {% for m in managers %}<option value="{{ m.id }}" {% if current.manager == m.id|stringformat:'s' %}selected{% endif %}>{{ m.display_name }}</option>{% endfor %}

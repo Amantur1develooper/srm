@@ -17,9 +17,9 @@
   </div>
 </div>
 
-<form method="get" class="stack" style="margin-bottom:var(--sp-4)">
+<form method="get" class="stack" style="margin-bottom:var(--sp-4)" data-live-search>
   <input class="field-input" type="search" name="q" placeholder="Поиск: имя, телефон, объект…"
-         value="{{ current.q|default:'' }}" onsearch="this.form.submit()">
+         value="{{ current.q|default:'' }}" autocomplete="off">
   <input type="hidden" name="sort" value="{{ sort }}">
 </form>
 

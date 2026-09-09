@@ -174,6 +174,46 @@
     });
   });
 
+  // ---- живой поиск: печатаешь/вставляешь — ищет само, без кнопки ----
+  document.querySelectorAll("[data-live-search]").forEach(function (form) {
+    const inp = form.querySelector('input[type="search"], input[name="q"]');
+    if (!inp) return;
+    const startQ = new URLSearchParams(window.location.search).get("q") || "";
+    let timer;
+    function run() {
+      clearTimeout(timer);
+      const v = inp.value.trim();
+      if (v === startQ) return;
+      const params = new URLSearchParams(window.location.search);
+      if (v) params.set("q", v);
+      else params.delete("q");
+      params.delete("page");
+      try { sessionStorage.setItem("liveSearchFocus", "1"); } catch (e) {}
+      window.location.search = params.toString();
+    }
+    inp.addEventListener("input", function () {
+      clearTimeout(timer);
+      timer = setTimeout(run, 350);
+    });
+    inp.addEventListener("paste", function () {
+      clearTimeout(timer);
+      timer = setTimeout(run, 30);
+    });
+    form.addEventListener("submit", function (e) { e.preventDefault(); run(); });
+  });
+  // после живого поиска — вернуть курсор в поле, чтобы печатать дальше
+  try {
+    if (sessionStorage.getItem("liveSearchFocus")) {
+      sessionStorage.removeItem("liveSearchFocus");
+      const q = document.querySelector('[data-live-search] input[name="q"]');
+      if (q) {
+        q.focus();
+        const val = q.value;
+        q.setSelectionRange(val.length, val.length);
+      }
+    }
+  } catch (e) {}
+
   // ---- клик по строке-ссылке (таблица задач) ----
   document.querySelectorAll("[data-row-link]").forEach(function (row) {
     row.addEventListener("click", function (e) {
