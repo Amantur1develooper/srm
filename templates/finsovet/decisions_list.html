@@ -1,0 +1,43 @@
+{% extends "crm/base.html" %}
+{% block title %}Решения — Финсовет{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><a href="{% url 'finsovet:dashboard' %}" class="muted">← Финсовет</a><h1 style="margin-top:4px">Решения Финсовета</h1></div>
+</div>
+
+<div class="card">
+  <div class="card-h">Новое решение</div>
+  <div class="card-b">
+    <form method="post" action="{% url 'finsovet:decision_add' %}" class="stack">
+      {% csrf_token %}
+      <textarea class="field-input field-textarea" name="text" rows="2" placeholder="Какое решение приняли?" required></textarea>
+      <div class="row">
+        <select class="field-input field-select" name="node_id">
+          <option value="">— без привязки к объекту —</option>
+          {% for n in nodes %}<option value="{{ n.id }}">{{ n.path }}</option>{% endfor %}
+        </select>
+        {{ form.responsible }}
+        {{ form.due_date }}
+        <button class="btn sm">Записать</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card" style="margin-top:var(--sp-6)">
+  <div class="card-h">Все решения</div>
+  <div class="card-b stack">
+    {% for d in decisions %}
+    <div style="border-bottom:1px solid var(--sep);padding-bottom:8px">
+      <div>{{ d.text }}</div>
+      <small class="muted">
+        {{ d.created_at|date:"d.m.Y" }}
+        {% if d.node %} · {{ d.node.path }}{% elif d.section %} · {{ d.section.name }}{% endif %}
+        {% if d.responsible %} · Ответственный: {{ d.responsible.display_name }}{% endif %}
+        {% if d.due_date %} · срок {{ d.due_date|date:"d.m.Y" }}{% endif %}
+      </small>
+    </div>
+    {% empty %}<div class="muted">Решений пока нет</div>{% endfor %}
+  </div>
+</div>
+{% endblock %}

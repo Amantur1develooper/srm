@@ -1,0 +1,44 @@
+{% extends "crm/base.html" %}
+{% block title %}Протокол {{ meeting.date|date:"d.m.Y" }} — Финсовет{% endblock %}
+{% block content %}
+<div class="page-head no-print">
+  <div><a href="{% url 'finsovet:protocol_list' %}" class="muted">← Протоколы</a></div>
+  <div class="actions"><button type="button" class="btn" onclick="window.print()">🖨 Печать / PDF</button></div>
+</div>
+
+<div class="protocol">
+  <h1>ФИНСОВЕТ</h1>
+  <p><b>Дата:</b> {{ meeting.date|date:"d.m.Y" }}{% if prev_meeting %} <span class="muted">(с прошлого заседания {{ prev_meeting.date|date:"d.m.Y" }})</span>{% endif %}</p>
+
+  <h2>РЕШЕНИЯ</h2>
+  <ol>
+    {% for d in decisions %}
+    <li>{{ d.text }}{% if d.responsible %} — Ответственный: {{ d.responsible.display_name }}{% endif %}{% if d.due_date %}, срок {{ d.due_date|date:"d.m.Y" }}{% endif %}</li>
+    {% empty %}<li class="muted">Нет</li>{% endfor %}
+  </ol>
+
+  <h2>ЗАДАЧИ</h2>
+  <table class="tbl">
+    <thead><tr><th>Кто</th><th>Что</th><th>Когда</th></tr></thead>
+    <tbody>
+      {% for t in tasks %}
+      <tr><td>{{ t.assignee.display_name|default:"—" }}</td><td>{{ t.title }}{% if t.node %} <span class="muted">({{ t.node.path }})</span>{% endif %}</td><td>{{ t.due_date|date:"d.m.Y"|default:"—" }}</td></tr>
+      {% empty %}<tr><td colspan="3" class="muted">Нет</td></tr>{% endfor %}
+    </tbody>
+  </table>
+
+  <h2>ОТКРЫТЫЕ ВОПРОСЫ</h2>
+  <ol>
+    {% for n in open_problems %}
+    <li>{{ n.path }} — {{ n.current_state_text }}</li>
+    {% empty %}<li class="muted">Нет</li>{% endfor %}
+  </ol>
+
+  <h2>ИЗМЕНЕНИЯ</h2>
+  <ol>
+    {% for e in state_entries %}
+    <li>{{ e.node.path }} → {{ e.text }}</li>
+    {% empty %}<li class="muted">Нет</li>{% endfor %}
+  </ol>
+</div>
+{% endblock %}

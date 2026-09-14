@@ -1,0 +1,51 @@
+{% extends "crm/base.html" %}
+{% block title %}Финсовет — Webordo{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Финсовет</h1><small>Актуальная картина на сегодня</small></div>
+  <div class="actions">
+    <div class="fs-pop" data-popover>
+      <button type="button" class="btn" data-pop-trigger>＋ Добавить</button>
+      <div class="pop-panel" data-pop-panel style="width:340px">
+        <div class="pop-h">Куда и что произошло</div>
+        <form method="post" action="{% url 'finsovet:entry_add' %}">
+          {% csrf_token %}
+          {% include "crm/_form.html" with form=quick_form %}
+          <div class="pop-actions"><button class="btn sm block" type="submit">Сохранить</button></div>
+        </form>
+      </div>
+    </div>
+    <a href="{% url 'finsovet:changes' %}" class="btn secondary">Изменения</a>
+    <a href="{% url 'finsovet:protocol_list' %}" class="btn secondary">Протокол</a>
+    <a href="{% url 'finsovet:task_list' %}" class="btn secondary">Задачи</a>
+    <a href="{% url 'finsovet:structure' %}" class="btn ghost" title="Структура: разделы и объекты">⚙️</a>
+  </div>
+</div>
+
+<form method="get" class="stack" style="margin-bottom:var(--sp-4)" data-live-search>
+  <input class="field-input" type="search" name="q" placeholder="Поиск: объект, работа, человек, задача, слово…"
+         value="{{ q }}" autocomplete="off">
+</form>
+
+{% if search_mode %}<div class="muted" style="margin-bottom:var(--sp-3)">Результаты по «{{ q }}» — <a href="{% url 'finsovet:dashboard' %}">сбросить</a></div>{% endif %}
+
+{% for g in groups %}
+<div class="fs-section">
+  <div class="fs-section-h">{{ g.section.name }}</div>
+  {% for obj in g.objects %}
+    {% if obj.root %}<div class="fs-object-h">{{ obj.root.name }}</div>{% endif %}
+    <div class="fs-table">
+      {% for node, depth in obj.rows %}
+        {% include "finsovet/_node_row.html" with node=node depth=depth %}
+      {% endfor %}
+    </div>
+  {% endfor %}
+</div>
+{% empty %}
+<div class="empty">
+  <div class="big">🗂️</div>
+  {% if search_mode %}Ничего не найдено{% else %}Пока пусто. Разделы есть (Финансы / Продажи / Управление / Производство) —
+  добавьте объекты в <a href="{% url 'finsovet:structure' %}">Структуре</a>, дальше всё через «＋ Добавить».{% endif %}
+</div>
+{% endfor %}
+{% endblock %}

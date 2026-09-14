@@ -1,0 +1,42 @@
+{% extends "crm/base.html" %}
+{% block title %}Задачи — Финсовет{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><a href="{% url 'finsovet:dashboard' %}" class="muted">← Финсовет</a><h1 style="margin-top:4px">Задачи</h1></div>
+</div>
+
+<div class="chips" style="margin-bottom:var(--sp-3)">
+  <a class="chip {% if not assignee_id %}active{% endif %}" href="?status={{ status }}">Все</a>
+  {% for m in members %}
+  <a class="chip {% if assignee_id == m.id|stringformat:'s' %}active{% endif %}" href="?assignee={{ m.id }}&status={{ status }}">{{ m.display_name }}</a>
+  {% endfor %}
+  <span class="sp" style="flex:1"></span>
+  <a class="chip {% if status == 'open' %}active{% endif %}" href="?assignee={{ assignee_id }}&status=open">Открытые</a>
+  <a class="chip {% if status == 'done' %}active{% endif %}" href="?assignee={{ assignee_id }}&status=done">Готово</a>
+  <a class="chip {% if status == 'all' %}active{% endif %}" href="?assignee={{ assignee_id }}&status=all">Все статусы</a>
+</div>
+
+<form method="post" action="{% url 'finsovet:task_add' %}" class="row" style="margin-bottom:var(--sp-4)">
+  {% csrf_token %}
+  <input class="field-input" name="title" placeholder="Новая задача…" required>
+  {{ form.assignee }}
+  {{ form.due_date }}
+  <button class="btn sm">Создать</button>
+</form>
+
+<div class="tlist" data-inline-url="{% url 'finsovet:task_inline_update' 0 %}">
+  {% for t in tasks %}
+  <div class="titem tone-{{ t.due_tone }}{% if t.status == 'done' %} is-done{% endif %}" data-task-id="{{ t.id }}" data-row-link="{{ t.get_absolute_url }}">
+    <form method="post" action="{% url 'finsovet:task_status' t.id %}" data-tcheck-form class="tcheck-form">{% csrf_token %}
+      <input type="hidden" name="status" value="{% if t.status == 'done' %}new{% else %}done{% endif %}">
+      <button type="submit" class="tcheck2{% if t.status == 'done' %} done{% endif %}" aria-label="Выполнено"></button>
+    </form>
+    <span class="ttext kf" contenteditable data-field="title" data-task-id="{{ t.id }}">{{ t.title }}</span>
+    <input type="date" class="tdate" data-field="due_date" data-task-id="{{ t.id }}" value="{{ t.due_date|date:'Y-m-d' }}">
+    {% if t.node %}<a href="{{ t.node.get_absolute_url }}" class="tclient">{{ t.node.name }}</a>{% endif %}
+  </div>
+  {% empty %}
+  <div class="empty"><div class="big">✅</div>Задач нет</div>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -24,6 +24,7 @@ class User(AbstractUser):
     role = models.CharField("Роль", max_length=16, choices=Role.choices, default=Role.MANAGER)
     phone = models.CharField("Телефон", max_length=32, blank=True)
     is_active_manager = models.BooleanField("Активен как менеджер", default=True)
+    can_access_finsovet = models.BooleanField("Доступ к Финсовету", default=False)
 
     class Meta:
         verbose_name = "Пользователь"
@@ -52,6 +53,10 @@ class User(AbstractUser):
     @property
     def can_manage_settings(self) -> bool:
         return self.is_admin_role
+
+    @property
+    def has_finsovet_access(self) -> bool:
+        return self.is_admin_role or self.can_access_finsovet
 
 
 class Stage(models.Model):

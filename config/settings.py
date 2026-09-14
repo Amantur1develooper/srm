@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.humanize",
     "apps.crm",
+    "apps.finsovet",
 ]
 
 AUTH_USER_MODEL = "crm.User"

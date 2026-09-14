@@ -145,7 +145,7 @@ class UserForm(BootstrapMixin, forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ["username", "first_name", "last_name", "phone", "role", "is_active"]
+        fields = ["username", "first_name", "last_name", "phone", "role", "is_active", "can_access_finsovet"]
 
     def save(self, commit=True):
         user = super().save(commit=False)

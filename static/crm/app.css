@@ -748,3 +748,55 @@ td[data-task-cell]{min-width:170px;max-width:240px}
   .modal{max-width:none;border-radius:var(--r-xl) var(--r-xl) 0 0;animation:sheet-up .34s cubic-bezier(.16,1,.3,1)}
 }
 @keyframes sheet-up{from{transform:translateY(100%)}to{transform:translateY(0)}}
+
+/* =========================================================
+   ФИНСОВЕТ — живой список состояния дел
+   ========================================================= */
+.fs-section{margin-bottom:var(--sp-6)}
+.fs-section-h{
+  font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--muted);text-transform:uppercase;
+  padding:0 0 8px;border-bottom:1.5px solid var(--sep);margin-bottom:6px;
+}
+.fs-object-h{font-size:14px;font-weight:700;margin:14px 0 4px;color:var(--text)}
+.fs-table{background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);overflow:hidden}
+.fs-row{display:flex;align-items:center;gap:var(--sp-3);padding:9px var(--sp-4);border-top:.5px solid var(--sep);position:relative}
+.fs-row:first-child{border-top:0}
+.fs-row:hover{background:var(--fill-quat)}
+.fs-name{flex:0 0 auto;width:170px;min-width:0;font-weight:600;font-size:13.5px;color:var(--text);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fs-name:hover{color:var(--blue);text-decoration:none;opacity:1}
+.fs-state{flex:1 1 auto;min-width:0;font-size:13.5px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fs-state.fs-problem{color:var(--red-d);font-weight:600}
+.fs-flag{margin-right:2px}
+.fs-who{flex:0 0 140px;text-align:right;font-size:12.5px;color:var(--muted);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fs-actions{flex:0 0 auto;display:flex;gap:4px;visibility:hidden;margin-left:8px}
+.fs-row:hover .fs-actions{visibility:visible}
+.fs-abtn{
+  background:var(--fill);border:0;border-radius:var(--r-pill);padding:4px 9px;font-size:11.5px;font-weight:600;
+  color:var(--text);cursor:pointer;font-family:inherit;white-space:nowrap;
+}
+.fs-abtn:hover{background:var(--fill-hover);color:var(--blue)}
+.fs-pop{position:relative;display:inline-flex}
+.fs-pop .pop-panel{width:290px}
+.fs-pop .pop-panel.open{visibility:visible}
+.fs-hist-item{padding:6px 0;border-top:.5px solid var(--sep)}
+.fs-hist-item:first-child{border-top:0}
+@media(max-width:760px){
+  .fs-name{width:110px;font-size:12.5px}
+  .fs-who{flex-basis:90px;font-size:11.5px}
+  .fs-abtn{font-size:10.5px;padding:3px 7px}
+}
+
+/* Протокол — печать/PDF через браузер */
+.protocol{max-width:760px;background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:var(--sp-8) var(--sp-6)}
+.protocol h1{font-size:20px;letter-spacing:.02em;margin:0 0 10px}
+.protocol h2{font-size:14px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);margin:22px 0 8px;border-top:1px solid var(--sep);padding-top:14px}
+.protocol h2:first-of-type{border-top:0;padding-top:0}
+.protocol ol{margin:0;padding-left:20px}
+.protocol li{margin-bottom:6px;line-height:1.45}
+@media print{
+  .sidebar,.topbar,.mobnav,.no-print{display:none !important}
+  .main{margin:0 !important}
+  .content{padding:0 !important}
+  body{background:#fff}
+  .protocol{box-shadow:none;border-radius:0;max-width:none;padding:0}
+}

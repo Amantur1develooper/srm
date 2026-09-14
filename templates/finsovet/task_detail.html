@@ -1,0 +1,42 @@
+{% extends "crm/base.html" %}
+{% block title %}{{ task.title }} — Финсовет{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    {% if task.node %}<a href="{{ task.node.get_absolute_url }}" class="muted">← {{ task.node.name }}</a>{% else %}<a href="{% url 'finsovet:task_list' %}" class="muted">← Задачи</a>{% endif %}
+    <h1 style="margin-top:4px">{{ task.title }}</h1>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-b stack">
+    <div class="row">
+      <span class="badge {% if task.status == 'done' %}green{% elif task.is_overdue %}red{% else %}amber{% endif %}">{{ task.get_status_display }}</span>
+      {% if task.assignee %}<span class="muted">{{ task.assignee.display_name }}</span>{% endif %}
+      {% if task.due_date %}<span class="muted">срок {{ task.due_date|date:"d.m.Y" }}</span>{% endif %}
+    </div>
+    <form method="post" action="{% url 'finsovet:task_status' task.id %}" class="row">
+      {% csrf_token %}
+      {% if task.is_open %}
+      <input type="hidden" name="status" value="done"><button class="btn sm success">✓ Готово</button>
+      {% else %}
+      <input type="hidden" name="status" value="new"><button class="btn sm secondary">↺ Вернуть в работу</button>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
+<div class="card" style="margin-top:var(--sp-6)">
+  <div class="card-h">История задачи</div>
+  <div class="card-b">
+    <ul class="timeline">
+      {% for e in events %}
+      <li>
+        <div class="t-time">{{ e.created_at|date:"d.m.Y H:i" }} · {{ e.author.display_name|default:"—" }}</div>
+        <div class="t-text">{{ e.text }}</div>
+      </li>
+      {% empty %}<li class="muted">Пока без изменений</li>{% endfor %}
+    </ul>
+  </div>
+</div>
+{% endblock %}

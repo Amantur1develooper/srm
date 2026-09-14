@@ -1,0 +1,61 @@
+{% extends "crm/base.html" %}
+{% block title %}Изменения — Финсовет{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <a href="{% url 'finsovet:dashboard' %}" class="muted">← Финсовет</a>
+    <h1 style="margin-top:4px">Что изменилось с последнего заседания</h1>
+    <small>{% if last_meeting %}С {{ last_meeting.date|date:"d.m.Y" }} ({{ last_meeting.created_at|date:"d.m.Y H:i" }}){% else %}Заседаний ещё не было — показаны все данные{% endif %}</small>
+  </div>
+  <div class="actions"><a href="{% url 'finsovet:protocol_list' %}" class="btn">Сформировать протокол</a></div>
+</div>
+
+{% if not has_changes %}
+<div class="empty"><div class="big">✅</div>Без изменений</div>
+{% else %}
+
+{% if state_entries %}
+<div class="card">
+  <div class="card-h">Изменения состояния</div>
+  <div class="card-b stack">
+    {% for e in state_entries %}
+    <div style="border-bottom:1px solid var(--sep);padding-bottom:8px">
+      <b>{{ e.node.path }}</b>
+      <div>{% if e.kind == 'problem' %}⚠ {% endif %}→ {{ e.text }}</div>
+      <small class="muted">{{ e.created_at|date:"d.m.Y H:i" }} · {{ e.author.display_name|default:"—" }}</small>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if decisions %}
+<div class="card" style="margin-top:var(--sp-6)">
+  <div class="card-h">Новые решения</div>
+  <div class="card-b stack">
+    {% for d in decisions %}
+    <div style="border-bottom:1px solid var(--sep);padding-bottom:8px">
+      <div>{{ d.text }}</div>
+      <small class="muted">{% if d.node %}{{ d.node.path }} · {% endif %}{% if d.responsible %}{{ d.responsible.display_name }}{% endif %}{% if d.due_date %} · срок {{ d.due_date|date:"d.m.Y" }}{% endif %}</small>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if tasks %}
+<div class="card" style="margin-top:var(--sp-6)">
+  <div class="card-h">Новые задачи</div>
+  <div class="card-b stack">
+    {% for t in tasks %}
+    <div style="border-bottom:1px solid var(--sep);padding-bottom:8px">
+      <b>{{ t.title }}</b>
+      <div class="muted">{% if t.node %}{{ t.node.path }} · {% endif %}{% if t.assignee %}{{ t.assignee.display_name }}{% else %}—{% endif %}{% if t.due_date %} · {{ t.due_date|date:"d.m.Y" }}{% endif %}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}

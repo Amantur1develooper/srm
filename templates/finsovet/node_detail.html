@@ -1,0 +1,117 @@
+{% extends "crm/base.html" %}
+{% block title %}{{ node.name }} — Финсовет{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <a href="{% url 'finsovet:dashboard' %}" class="muted">← Финсовет</a>
+    <h1 style="margin-top:4px">{{ node.path }}</h1>
+    {% if node.has_open_problem %}<span class="badge red">⚠ Открытая проблема</span>{% endif %}
+  </div>
+</div>
+
+<div class="detail-grid">
+  <div class="card">
+    <div class="card-h">Сейчас</div>
+    <div class="card-b stack">
+      <div style="font-size:15px">{{ node.current_state_text|default:"—" }}</div>
+      {% if node.current_entry %}<small class="muted">{{ node.current_entry.created_at|date:"d.m.Y H:i" }} · {{ node.current_entry.author.display_name|default:"—" }}</small>{% endif %}
+
+      <form method="post" action="{% url 'finsovet:node_state_update' node.id %}" class="stack" style="border-top:1px solid var(--sep);padding-top:var(--sp-3)">
+        {% csrf_token %}
+        <b>Изменить</b>
+        <textarea class="field-input field-textarea" name="text" rows="2" placeholder="Что сейчас?" required></textarea>
+        <label class="check-inline"><input type="checkbox" class="field-check" name="is_problem"> ⚠ Это проблема</label>
+        <div class="row">
+          <select class="field-input field-select" name="reported_by">
+            <option value="">Я сообщил</option>
+            {% for m in members %}<option value="{{ m.id }}">{{ m.display_name }}</option>{% endfor %}
+          </select>
+          <button class="btn sm" type="submit">Сохранить</button>
+        </div>
+      </form>
+
+      <form method="post" action="{% url 'finsovet:node_comment_add' node.id %}" class="stack" style="border-top:1px solid var(--sep);padding-top:var(--sp-3)">
+        {% csrf_token %}
+        <b>+ Комментарий</b>
+        <textarea class="field-input field-textarea" name="text" rows="2" required></textarea>
+        <button class="btn sm secondary" type="submit" style="align-self:flex-start">Добавить</button>
+      </form>
+
+      {% if children %}
+      <div style="border-top:1px solid var(--sep);padding-top:var(--sp-3)">
+        <b>Внутри</b>
+        <div class="stack" style="margin-top:6px">
+          {% for c in children %}
+          <a href="{{ c.get_absolute_url }}" class="row" style="justify-content:space-between">
+            <span>{{ c.name }}</span>
+            <span class="muted">{{ c.current_state_text|truncatechars:30|default:"—" }}</span>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h">Задачи <span class="badge">{{ tasks|length }}</span></div>
+    <div class="card-b stack">
+      {% for t in tasks %}
+      <div class="task-line {% if t.status == 'done' %}is-done{% endif %}">
+        <span class="task-check {% if t.status == 'done' %}done{% endif %}">✓</span>
+        <div class="task-body">
+          <a href="{{ t.get_absolute_url }}" class="task-ttl">{{ t.title }}</a>
+          <small class="muted">{{ t.get_status_display }}{% if t.assignee %} · {{ t.assignee.display_name }}{% endif %}{% if t.due_date %} · {{ t.due_date|date:"d.m.Y" }}{% endif %}</small>
+        </div>
+      </div>
+      {% empty %}<div class="muted">Задач нет</div>{% endfor %}
+
+      <form method="post" action="{% url 'finsovet:node_task_add' node.id %}" class="stack" style="border-top:1px solid var(--sep);padding-top:var(--sp-3)">
+        {% csrf_token %}
+        <input class="field-input" name="title" placeholder="Что сделать" required>
+        <div class="row">
+          {{ task_form.assignee }}
+          {{ task_form.due_date }}
+          <button class="btn sm">Создать</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="margin-top:var(--sp-6)">
+  <div class="card-h">Решения по этой работе</div>
+  <div class="card-b stack">
+    {% for d in decisions %}
+    <div style="border-bottom:1px solid var(--sep);padding-bottom:8px">
+      <div>{{ d.text }}</div>
+      <small class="muted">{{ d.created_at|date:"d.m.Y" }}{% if d.responsible %} · Ответственный: {{ d.responsible.display_name }}{% endif %}{% if d.due_date %} · срок {{ d.due_date|date:"d.m.Y" }}{% endif %}</small>
+    </div>
+    {% empty %}<div class="muted">Решений нет</div>{% endfor %}
+    <form method="post" action="{% url 'finsovet:decision_add' %}" class="stack" style="border-top:1px solid var(--sep);padding-top:var(--sp-3)">
+      {% csrf_token %}
+      <input type="hidden" name="node_id" value="{{ node.id }}">
+      <textarea class="field-input field-textarea" name="text" rows="2" placeholder="Какое решение приняли?" required></textarea>
+      <div class="row">
+        {{ decision_form.responsible }}
+        {{ decision_form.due_date }}
+        <button class="btn sm">Записать решение</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card" style="margin-top:var(--sp-6)">
+  <div class="card-h">Вся история</div>
+  <div class="card-b">
+    <ul class="timeline">
+      {% for e in entries %}
+      <li>
+        <div class="t-time">{{ e.created_at|date:"d.m.Y H:i" }} · {{ e.author.display_name|default:"—" }}</div>
+        <div class="t-text">{% if e.kind == 'problem' %}⚠ Проблема{% elif e.kind == 'comment' %}Комментарий{% else %}Состояние{% endif %}: {{ e.text }}</div>
+      </li>
+      {% empty %}<li class="muted">История пуста</li>{% endfor %}
+    </ul>
+  </div>
+</div>
+{% endblock %}

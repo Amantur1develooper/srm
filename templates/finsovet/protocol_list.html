@@ -1,0 +1,28 @@
+{% extends "crm/base.html" %}
+{% block title %}Протоколы — Финсовет{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><a href="{% url 'finsovet:dashboard' %}" class="muted">← Финсовет</a><h1 style="margin-top:4px">Протоколы заседаний</h1></div>
+  <div class="actions">
+    <form method="post" action="{% url 'finsovet:protocol_generate' %}" onsubmit="return confirm('Зафиксировать заседание сегодняшним числом? После этого «Изменения» начнут считаться заново.')">
+      {% csrf_token %}
+      <button class="btn">Сформировать протокол сейчас</button>
+    </form>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <table class="tbl">
+    <thead><tr><th>Дата</th><th>Создал</th><th></th></tr></thead>
+    <tbody>
+      {% for m in meetings %}
+      <tr>
+        <td>{{ m.date|date:"d.m.Y" }}</td>
+        <td>{{ m.created_by.display_name|default:"—" }}</td>
+        <td><a href="{% url 'finsovet:protocol_detail' m.id %}" class="btn secondary sm">Открыть</a></td>
+      </tr>
+      {% empty %}<tr><td colspan="3" class="muted">Протоколов ещё нет</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

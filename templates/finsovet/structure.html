@@ -1,0 +1,74 @@
+{% extends "crm/base.html" %}
+{% block title %}Структура — Финсовет{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><a href="{% url 'finsovet:dashboard' %}" class="muted">← Финсовет</a><h1 style="margin-top:4px">Структура: разделы и объекты</h1></div>
+</div>
+
+<div class="detail-grid">
+  <div class="card">
+    <div class="card-h">Новый раздел</div>
+    <div class="card-b">
+      <form method="post" class="stack">
+        {% csrf_token %}
+        <input type="hidden" name="form_kind" value="section">
+        {% include "crm/_form.html" with form=section_form %}
+        <button class="btn sm" style="align-self:flex-start">Добавить раздел</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h">Новый узел (объект / блок / работа)</div>
+    <div class="card-b">
+      <form method="post" class="stack">
+        {% csrf_token %}
+        <input type="hidden" name="form_kind" value="node">
+        {% include "crm/_form.html" with form=node_form %}
+        <div class="help">Без «Родителя» — это объект (верхний уровень раздела). С родителем — блок/работа внутри него.</div>
+        <button class="btn sm" style="align-self:flex-start">Добавить узел</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="margin-top:var(--sp-6)">
+  <div class="card-h">Разделы</div>
+  <div class="card-b">
+    <div class="table-wrap">
+      <table class="tbl">
+        <thead><tr><th>Название</th><th>Slug</th><th>Порядок</th><th>Активен</th></tr></thead>
+        <tbody>
+          {% for s in sections %}
+          <tr><td>{{ s.name }}</td><td class="mono">{{ s.slug }}</td><td class="num">{{ s.order }}</td><td>{% if s.is_active %}да{% else %}нет{% endif %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="margin-top:var(--sp-6)">
+  <div class="card-h">Все узлы</div>
+  <div class="card-b">
+    <div class="table-wrap">
+      <table class="tbl">
+        <thead><tr><th>Путь</th><th>Раздел</th><th></th></tr></thead>
+        <tbody>
+          {% for n in nodes %}
+          <tr>
+            <td><a href="{{ n.get_absolute_url }}">{{ n.path }}</a></td>
+            <td>{{ n.section.name }}</td>
+            <td>
+              <form method="post" action="{% url 'finsovet:node_deactivate' n.id %}" onsubmit="return confirm('Скрыть «{{ n.name }}»? История сохранится.')">
+                {% csrf_token %}<button class="btn ghost sm">Скрыть</button>
+              </form>
+            </td>
+          </tr>
+          {% empty %}<tr><td colspan="3" class="muted">Узлов пока нет</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

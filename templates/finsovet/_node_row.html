@@ -1,0 +1,82 @@
+{% comment %}Строка узла: название / текущее состояние / ответственный-срок + действия по наведению.{% endcomment %}
+<div class="fs-row" data-row>
+  <a class="fs-name" href="{{ node.get_absolute_url }}" style="padding-left:{{ depth|add:1 }}4px">{{ node.name }}</a>
+  <span class="fs-state {% if node.has_open_problem %}fs-problem{% endif %}">
+    {% if node.has_open_problem %}<span class="fs-flag" title="Открытая проблема">⚠</span>{% endif %}
+    {{ node.current_state_text|default:"—" }}
+  </span>
+  <span class="fs-who">
+    {% with t=node.open_task %}
+      {% if t %}{{ t.assignee.display_name|default:"—" }}{% if t.due_date %} / {{ t.due_date|date:"d.m" }}{% endif %}{% else %}<span class="muted-2">—</span>{% endif %}
+    {% endwith %}
+  </span>
+  <span class="fs-actions">
+    <div class="fs-pop" data-popover>
+      <button type="button" class="fs-abtn" data-pop-trigger>✎ Изменить</button>
+      <div class="pop-panel" data-pop-panel>
+        <div class="pop-h">{{ node.name }} — новое состояние</div>
+        <form method="post" action="{% url 'finsovet:node_state_update' node.id %}">
+          {% csrf_token %}
+          <textarea class="field-input field-textarea" name="text" rows="2" placeholder="Что сейчас?" required></textarea>
+          <label class="check-inline"><input type="checkbox" class="field-check" name="is_problem"> ⚠ Это проблема</label>
+          <label class="pop-lbl">Кто сообщил</label>
+          <select class="field-input field-select" name="reported_by">
+            <option value="">Я</option>
+            {% for m in members %}<option value="{{ m.id }}">{{ m.display_name }}</option>{% endfor %}
+          </select>
+          <div class="pop-actions"><button class="btn sm block" type="submit">Сохранить</button></div>
+        </form>
+      </div>
+    </div>
+
+    <div class="fs-pop" data-popover>
+      <button type="button" class="fs-abtn" data-pop-trigger>+ Комментарий</button>
+      <div class="pop-panel" data-pop-panel>
+        <div class="pop-h">Комментарий</div>
+        <form method="post" action="{% url 'finsovet:node_comment_add' node.id %}">
+          {% csrf_token %}
+          <textarea class="field-input field-textarea" name="text" rows="2" placeholder="Например: специалист будет завтра" required></textarea>
+          <label class="pop-lbl">Автор</label>
+          <select class="field-input field-select" name="reported_by">
+            <option value="">Я</option>
+            {% for m in members %}<option value="{{ m.id }}">{{ m.display_name }}</option>{% endfor %}
+          </select>
+          <div class="pop-actions"><button class="btn sm block" type="submit">Добавить</button></div>
+        </form>
+      </div>
+    </div>
+
+    <div class="fs-pop" data-popover>
+      <button type="button" class="fs-abtn" data-pop-trigger>+ Задача</button>
+      <div class="pop-panel" data-pop-panel>
+        <div class="pop-h">Новая задача</div>
+        <form method="post" action="{% url 'finsovet:node_task_add' node.id %}">
+          {% csrf_token %}
+          <input class="field-input" name="title" placeholder="Что сделать" required>
+          <label class="pop-lbl">Кто</label>
+          <select class="field-input field-select" name="assignee">
+            <option value="">—</option>
+            {% for m in members %}<option value="{{ m.id }}">{{ m.display_name }}</option>{% endfor %}
+          </select>
+          <label class="pop-lbl">Когда</label>
+          <input class="field-input" type="date" name="due_date">
+          <div class="pop-actions"><button class="btn sm block" type="submit">Создать</button></div>
+        </form>
+      </div>
+    </div>
+
+    <div class="fs-pop" data-popover>
+      <button type="button" class="fs-abtn" data-pop-trigger>История</button>
+      <div class="pop-panel" data-pop-panel>
+        <div class="pop-h">Последние изменения</div>
+        {% for e in node.recent_entries %}
+        <div class="fs-hist-item">
+          <div><b>{{ e.created_at|date:"d.m" }}</b> {% if e.kind == 'problem' %}⚠ {% endif %}{{ e.text|truncatechars:70 }}</div>
+          <div class="muted" style="font-size:11px">{{ e.author.display_name|default:"—" }}{% if e.kind == 'comment' %} · комментарий{% endif %}</div>
+        </div>
+        {% empty %}<div class="muted">Пока пусто</div>{% endfor %}
+        <div class="pop-actions"><a href="{{ node.get_absolute_url }}" class="btn ghost sm block">Вся история</a></div>
+      </div>
+    </div>
+  </span>
+</div>
