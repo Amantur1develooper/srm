@@ -95,6 +95,38 @@ class Node(models.Model):
     def recent_entries(self, limit=5):
         return self.entries.select_related("author").order_by("-created_at")[:limit]
 
+    def descendant_ids(self):
+        """Себя и все дочерние узлы (любой глубины) — для объединённой ленты «чата» объекта."""
+        if getattr(self, "_descendant_ids_cache", None) is None:
+            ids = [self.id]
+            for child in self.children.filter(is_active=True):
+                ids.extend(child.descendant_ids())
+            self._descendant_ids_cache = ids
+        return self._descendant_ids_cache
+
+    def feed_entries(self):
+        """Лента объекта: все записи по нему и по всем его работам, от старых к новым — как переписка."""
+        return Entry.objects.filter(node_id__in=self.descendant_ids()).select_related("node", "author").order_by("created_at")
+
+    def feed_tasks(self):
+        return Task.objects.filter(node_id__in=self.descendant_ids()).select_related("node", "assignee")
+
+    @property
+    def last_activity(self):
+        return self.entries.model.objects.filter(node_id__in=self.descendant_ids()).select_related("node", "author").order_by("-created_at").first()
+
+    @property
+    def open_tasks_count(self) -> int:
+        return self.feed_tasks().exclude(status=Task.Status.DONE).count()
+
+    @property
+    def open_problems(self):
+        return [n for n in Node.objects.filter(id__in=self.descendant_ids()) if n.has_open_problem]
+
+    @property
+    def open_problems_count(self) -> int:
+        return len(self.open_problems)
+
 
 class Entry(models.Model):
     """Запись в журнале узла: состояние, комментарий или проблема."""

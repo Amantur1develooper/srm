@@ -30,35 +30,86 @@ def _flatten(node, depth=0):
     return rows
 
 
+# Цвет аватарки в списке чатов — по кругу, чтобы разделы визуально отличались.
+AVATAR_COLORS = ["#4f46e5", "#0a8f5b", "#c2620a", "#0891b2", "#be185d", "#7c3aed", "#b45309", "#1d4ed8"]
+
+
 @finsovet_required
 def dashboard(request):
     q = request.GET.get("q", "").strip()
     sections = Section.objects.filter(is_active=True)
-    base_ctx = {"members": finsovet_members(), "quick_form": QuickEntryForm()}
 
-    if q:
-        matched = (
-            Node.objects.filter(is_active=True)
-            .filter(Q(name__icontains=q) | Q(entries__text__icontains=q) | Q(tasks__title__icontains=q))
-            .select_related("section", "parent", "parent__parent")
-            .distinct()
-        )
-        groups = []
-        for section in sections:
-            rows = [n for n in matched if n.section_id == section.id]
-            if rows:
-                groups.append({"section": section, "objects": [{"root": None, "rows": [(n, 0) for n in rows]}]})
-        return render(request, "finsovet/dashboard.html", {**base_ctx, "groups": groups, "q": q, "search_mode": True})
-
-    groups = []
+    left_groups = []
+    all_roots = []
+    color_i = 0
     for section in sections:
-        roots = Node.objects.filter(section=section, parent=None, is_active=True).order_by("order", "name")
-        objects = []
+        roots = list(Node.objects.filter(section=section, parent=None, is_active=True).order_by("order", "name"))
+        if q:
+            ql = q.lower()
+            roots = [
+                r for r in roots
+                if ql in r.name.lower()
+                or any(ql in n.name.lower() for n in Node.objects.filter(id__in=r.descendant_ids()))
+                or any(ql in (e.text or "").lower() for e in Entry.objects.filter(node_id__in=r.descendant_ids())[:200])
+            ]
+        items = []
         for root in roots:
-            objects.append({"root": root, "rows": _flatten(root)})
-        if objects:
-            groups.append({"section": section, "objects": objects})
-    return render(request, "finsovet/dashboard.html", {**base_ctx, "groups": groups, "q": "", "search_mode": False})
+            la = root.last_activity
+            items.append({
+                "node": root,
+                "color": AVATAR_COLORS[color_i % len(AVATAR_COLORS)],
+                "snippet": (f"{la.node.name}: {la.text}" if la and la.node_id != root.id else (la.text if la else "")),
+                "last_at": la.created_at if la else root.created_at,
+                "badge": root.open_problems_count + root.open_tasks_count,
+                "has_problem": root.open_problems_count > 0,
+            })
+            color_i += 1
+        if items:
+            left_groups.append({"section": section, "objects": items})
+        all_roots.extend(roots)
+
+    selected = None
+    sel_id = request.GET.get("object")
+    if sel_id:
+        selected = next((r for r in all_roots if str(r.id) == sel_id), None) or Node.objects.filter(pk=sel_id, parent=None).first()
+    if not selected and all_roots:
+        selected = all_roots[0]
+
+    ctx = {
+        "left_groups": left_groups, "selected": selected, "q": q,
+        "members": finsovet_members(), "quick_form": QuickEntryForm(),
+        "task_form": TaskQuickForm(), "decision_form": DecisionForm(),
+    }
+    if selected:
+        feed_items = []
+        for e in selected.feed_entries():
+            feed_items.append({"kind": "entry", "at": e.created_at, "entry": e})
+        for t in selected.feed_tasks():
+            feed_items.append({"kind": "task", "at": t.created_at, "task": t})
+        feed_items.sort(key=lambda x: x["at"])
+        ctx.update({
+            "feed_items": feed_items,
+            "works": selected.children.filter(is_active=True).order_by("order", "name"),
+            "open_tasks": selected.feed_tasks().exclude(status=Task.Status.DONE).order_by("due_date"),
+            "open_problems": selected.open_problems,
+            "decisions": Decision.objects.filter(node_id__in=selected.descendant_ids()).select_related("responsible")[:20],
+        })
+    return render(request, "finsovet/dashboard.html", ctx)
+
+
+@finsovet_required
+@require_POST
+def object_message_add(request):
+    """Строка ввода внизу «чата» объекта — свободное сообщение по объекту или конкретной работе."""
+    node = get_object_or_404(Node, pk=request.POST.get("node_id"))
+    text = request.POST.get("text", "").strip()
+    root = node
+    while root.parent_id:
+        root = root.parent
+    if text:
+        kind = Entry.Kind.PROBLEM if request.POST.get("is_problem") == "1" else Entry.Kind.COMMENT
+        log_entry(node, kind, text, request.user)
+    return redirect(reverse("finsovet:dashboard") + f"?object={root.id}")
 
 
 @finsovet_required

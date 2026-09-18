@@ -11,6 +11,7 @@ urlpatterns = [
     path("node/<int:pk>/comment/", views.node_comment_add, name="node_comment_add"),
     path("node/<int:pk>/task/", views.node_task_add, name="node_task_add"),
     path("entry/add/", views.entry_add, name="entry_add"),
+    path("message/add/", views.object_message_add, name="object_message_add"),
 
     path("tasks/", views.task_list, name="task_list"),
     path("tasks/add/", views.task_add, name="task_add"),

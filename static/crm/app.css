@@ -800,3 +800,134 @@ td[data-task-cell]{min-width:170px;max-width:240px}
   body{background:#fff}
   .protocol{box-shadow:none;border-radius:0;max-width:none;padding:0}
 }
+
+/* =========================================================
+   ФИНСОВЕТ — главный экран в виде переписки (три колонки,
+   как WhatsApp Web): отделы→объекты слева, лента объекта
+   в центре, ответственный/задачи справа.
+   ========================================================= */
+.wa-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--sp-3)}
+.wa-top-acts{display:flex;gap:6px}
+.wa-ibtn{
+  width:32px;height:32px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+  background:var(--fill);font-size:15px;flex:0 0 auto;
+}
+.wa-ibtn:hover{background:var(--fill-hover);opacity:1}
+
+.wa-shell{
+  display:grid;grid-template-columns:280px 1fr 260px;gap:1px;background:var(--sep);
+  border:1px solid var(--sep);border-radius:var(--r-lg);overflow:hidden;
+  height:calc(100vh - var(--header-h) - 132px);box-shadow:var(--shadow-sm);
+}
+@media (max-width:980px){.wa-shell{grid-template-columns:240px 1fr}}
+@media (max-width:760px){.wa-shell{grid-template-columns:1fr;height:auto}}
+
+/* ---- левая колонка: список объектов ---- */
+.wa-list{background:var(--surface);display:flex;flex-direction:column;min-height:0}
+.wa-search-wrap{padding:10px;border-bottom:.5px solid var(--sep);flex:0 0 auto}
+.wa-search{
+  width:100%;border:0;background:var(--fill);border-radius:var(--r-pill);padding:8px 14px;
+  font-size:13.5px;color:var(--text);
+}
+.wa-search:focus{outline:none;background:var(--surface);box-shadow:0 0 0 2px var(--blue-tint)}
+.wa-list-scroll{flex:1;overflow-y:auto;min-height:0}
+.wa-group-h{
+  font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);
+  padding:10px 14px 6px;background:var(--sidebar-bg);position:sticky;top:0;
+}
+.wa-chat-item{display:flex;gap:10px;padding:9px 14px;border-bottom:.5px solid var(--fill-quat);align-items:flex-start;color:var(--text)}
+.wa-chat-item:hover{background:var(--fill-quat);opacity:1;text-decoration:none}
+.wa-chat-item.active{background:var(--blue-tint)}
+.wa-avatar{
+  width:38px;height:38px;border-radius:50%;flex:0 0 38px;display:flex;align-items:center;justify-content:center;
+  color:#fff;font-weight:700;font-size:15px;
+}
+.wa-chat-main{flex:1;min-width:0}
+.wa-chat-row1{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.wa-chat-name{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wa-chat-time{font-size:11px;color:var(--muted);flex:0 0 auto}
+.wa-chat-row2{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-top:1px}
+.wa-chat-snip{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wa-badge{
+  flex:0 0 auto;background:var(--blue);color:#fff;font-size:10.5px;font-weight:700;border-radius:20px;
+  padding:1px 6px;min-width:17px;text-align:center;
+}
+.wa-badge.red{background:var(--red)}
+.wa-empty-list{padding:20px 16px;color:var(--muted);font-size:13px}
+
+/* ---- средняя колонка: лента ---- */
+.wa-thread{background:var(--sidebar-bg);display:flex;flex-direction:column;min-height:0}
+.wa-thread-empty{align-items:center;justify-content:center;display:flex}
+.wa-thread-h{display:flex;align-items:center;gap:10px;padding:9px 16px;background:var(--surface);border-bottom:.5px solid var(--sep);flex:0 0 auto}
+.wa-thread-title{flex:1;display:flex;flex-direction:column;line-height:1.25}
+.wa-thread-title small{color:var(--muted);font-size:12px}
+.wa-topics{display:flex;gap:6px;overflow-x:auto;padding:8px 14px;background:var(--surface);border-bottom:.5px solid var(--sep);flex:0 0 auto}
+.wa-topic{
+  flex:0 0 auto;background:var(--fill);border:0;border-radius:var(--r-pill);padding:5px 12px;font-size:12.5px;
+  font-weight:500;color:var(--text);cursor:pointer;white-space:nowrap;font-family:inherit;
+}
+.wa-topic.active{background:var(--blue);color:#fff}
+.wa-topic.problem:not(.active){background:var(--danger-soft);color:var(--red-d)}
+
+.wa-feed{flex:1;overflow-y:auto;padding:16px 5% 10px;display:flex;flex-direction:column;gap:8px;min-height:0}
+.wa-msg{display:flex}
+.wa-msg.out{justify-content:flex-end}
+.wa-msg.in{justify-content:flex-start}
+.wa-bubble{
+  max-width:72%;background:var(--surface);border-radius:14px 14px 14px 3px;padding:8px 12px 6px;
+  box-shadow:var(--shadow-sm);font-size:14px;
+}
+.wa-msg.out .wa-bubble{background:var(--success-soft);border-radius:14px 14px 3px 14px}
+.wa-msg.problem .wa-bubble{background:var(--danger-soft)}
+.wa-who{font-size:11.5px;font-weight:700;color:var(--blue);margin-bottom:2px}
+.wa-topic-tag{
+  display:inline-block;font-size:10.5px;font-weight:600;color:var(--muted);background:var(--fill);
+  border-radius:6px;padding:1px 6px;margin-bottom:4px;
+}
+.wa-txt{white-space:pre-wrap;overflow-wrap:break-word;line-height:1.4}
+.wa-time{font-size:10.5px;color:var(--muted-2);text-align:right;margin-top:2px}
+
+.wa-sys{
+  align-self:center;display:flex;align-items:center;gap:8px;background:var(--fill);border-radius:var(--r-pill);
+  padding:6px 14px;font-size:12.5px;color:var(--muted);max-width:86%;
+}
+.wa-sys-ico{font-size:14px;flex:0 0 auto}
+.wa-sys-txt{color:var(--text)}
+.wa-sys-txt b{font-weight:600;color:var(--muted)}
+.wa-sys-time{font-size:10.5px;color:var(--muted-2);flex:0 0 auto}
+.wa-empty-feed{margin:auto;color:var(--muted);font-size:14px;text-align:center}
+
+.wa-inputbar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--surface);border-top:.5px solid var(--sep);flex:0 0 auto}
+.wa-plus{
+  width:36px;height:36px;border-radius:50%;background:var(--fill);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;flex:0 0 auto;font-size:15px;color:var(--muted);
+}
+.wa-plus.on{background:var(--danger-soft);color:var(--red-d)}
+.wa-input{
+  flex:1;border:0;background:var(--fill);border-radius:20px;padding:9px 16px;font-size:14px;color:var(--text);
+}
+.wa-input:focus{outline:none;background:var(--surface);box-shadow:0 0 0 2px var(--blue-tint)}
+.wa-send{
+  width:36px;height:36px;border-radius:50%;background:var(--blue);color:#fff;border:0;flex:0 0 auto;
+  font-size:15px;cursor:pointer;
+}
+.wa-send:hover{filter:brightness(1.08)}
+
+/* ---- правая колонка: ответственный / задачи ---- */
+.wa-info{background:var(--surface);display:flex;flex-direction:column;min-height:0}
+@media (max-width:980px){.wa-info{display:none}}
+.wa-info-scroll{flex:1;overflow-y:auto;padding:14px}
+.wa-info-card{margin-bottom:20px}
+.wa-info-h{font-size:12px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.wa-count{background:var(--fill);border-radius:20px;padding:0 6px;font-size:11px;color:var(--muted);font-weight:600}
+.wa-task-line{display:flex;gap:9px;padding:7px 0;border-top:.5px solid var(--fill-quat);font-size:13px}
+.wa-task-line:first-child{border-top:0}
+.wa-task-dot{width:8px;height:8px;border-radius:50%;background:var(--blue);flex:0 0 auto;margin-top:5px}
+.wa-task-dot.red{background:var(--red)}
+.wa-task-dot.green{background:var(--green)}
+@media (max-width:760px){
+  .wa-topbar{display:none}
+  .wa-thread{display:none}
+  .wa-shell.wa-open-thread .wa-thread{display:flex}
+  .wa-shell.wa-open-thread .wa-list{display:none}
+}
