@@ -1,117 +1,146 @@
 {% extends "crm/base.html" %}
 {% block title %}{{ node.name }} — Финсовет{% endblock %}
 {% block content %}
-<div class="page-head">
+<div class="page-head no-print">
   <div>
     <a href="{% url 'finsovet:dashboard' %}" class="muted">← Финсовет</a>
-    <h1 style="margin-top:4px">{{ node.path }}</h1>
-    {% if node.has_open_problem %}<span class="badge red">⚠ Открытая проблема</span>{% endif %}
+    <h1 style="margin-top:4px;font-size:22px">{{ node.path }}</h1>
   </div>
 </div>
 
-<div class="detail-grid">
-  <div class="card">
-    <div class="card-h">Сейчас</div>
-    <div class="card-b stack">
-      <div style="font-size:15px">{{ node.current_state_text|default:"—" }}</div>
-      {% if node.current_entry %}<small class="muted">{{ node.current_entry.created_at|date:"d.m.Y H:i" }} · {{ node.current_entry.author.display_name|default:"—" }}</small>{% endif %}
+<div class="wa-shell wa-shell-detail">
+  <section class="wa-thread">
+    <div class="wa-thread-h">
+      <span class="wa-avatar" style="background:#4f46e5">{{ node.name|slice:':1'|upper }}</span>
+      <div class="wa-thread-title">
+        <b>{{ node.name }}</b>
+        <small>{{ node.section.name }}{% if open_problems %} · ⚠ открытых вопросов: {{ open_problems|length }}{% endif %}</small>
+      </div>
+    </div>
 
-      <form method="post" action="{% url 'finsovet:node_state_update' node.id %}" class="stack" style="border-top:1px solid var(--sep);padding-top:var(--sp-3)">
-        {% csrf_token %}
-        <b>Изменить</b>
-        <textarea class="field-input field-textarea" name="text" rows="2" placeholder="Что сейчас?" required></textarea>
-        <label class="check-inline"><input type="checkbox" class="field-check" name="is_problem"> ⚠ Это проблема</label>
-        <div class="row">
-          <select class="field-input field-select" name="reported_by">
-            <option value="">Я сообщил</option>
-            {% for m in members %}<option value="{{ m.id }}">{{ m.display_name }}</option>{% endfor %}
-          </select>
-          <button class="btn sm" type="submit">Сохранить</button>
+    {% if works %}
+    <div class="wa-topics" id="waTopics">
+      <button type="button" class="wa-topic active" data-node-id="{{ node.id }}" data-label="{{ node.name }}">Объект</button>
+      {% for w in works %}
+      <button type="button" class="wa-topic {% if w.has_open_problem %}problem{% endif %}" data-node-id="{{ w.id }}" data-label="{{ w.name }}">{% if w.has_open_problem %}⚠ {% endif %}{{ w.name }}</button>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="wa-feed" id="waFeed">
+      {% for it in feed_items %}
+        {% if it.kind == "task" %}
+        <div class="wa-sys">
+          <span class="wa-sys-ico">{% if it.task.status == 'done' %}✅{% else %}📌{% endif %}</span>
+          <span class="wa-sys-txt">
+            <b>Задача{% if it.task.node_id != node.id %} · {{ it.task.node.name }}{% endif %}:</b> {{ it.task.title }}
+            {% if it.task.assignee %} — {{ it.task.assignee.display_name }}{% endif %}{% if it.task.due_date %} · до {{ it.task.due_date|date:"d.m" }}{% endif %}
+            {% if it.task.status == 'done' %} · готово{% endif %}
+          </span>
+          <span class="wa-sys-time">{{ it.at|date:"d.m H:i" }}</span>
         </div>
-      </form>
-
-      <form method="post" action="{% url 'finsovet:node_comment_add' node.id %}" class="stack" style="border-top:1px solid var(--sep);padding-top:var(--sp-3)">
-        {% csrf_token %}
-        <b>+ Комментарий</b>
-        <textarea class="field-input field-textarea" name="text" rows="2" required></textarea>
-        <button class="btn sm secondary" type="submit" style="align-self:flex-start">Добавить</button>
-      </form>
-
-      {% if children %}
-      <div style="border-top:1px solid var(--sep);padding-top:var(--sp-3)">
-        <b>Внутри</b>
-        <div class="stack" style="margin-top:6px">
-          {% for c in children %}
-          <a href="{{ c.get_absolute_url }}" class="row" style="justify-content:space-between">
-            <span>{{ c.name }}</span>
-            <span class="muted">{{ c.current_state_text|truncatechars:30|default:"—" }}</span>
-          </a>
-          {% endfor %}
+        {% else %}
+        {% with e=it.entry %}
+        <div class="wa-msg {% if e.author_id == request.user.id or not e.author_id %}out{% else %}in{% endif %} {% if e.kind == 'problem' %}problem{% endif %}">
+          <div class="wa-bubble">
+            {% if e.author_id != request.user.id and e.author_id %}<div class="wa-who">{{ e.author.display_name }}</div>{% endif %}
+            {% if e.node_id != node.id %}<div class="wa-topic-tag">{{ e.node.name }}</div>{% endif %}
+            <div class="wa-txt">{% if e.kind == 'problem' %}⚠ {% endif %}{{ e.text|linebreaksbr }}</div>
+            <div class="wa-time">{{ e.created_at|date:"d.m H:i" }}</div>
+          </div>
         </div>
+        {% endwith %}
+        {% endif %}
+      {% empty %}
+      <div class="wa-empty-feed">Пока ничего не записано — напишите внизу, что происходит.</div>
+      {% endfor %}
+    </div>
+
+    <form method="post" action="{% url 'finsovet:object_message_add' %}" class="wa-inputbar" id="waInputForm">
+      {% csrf_token %}
+      <input type="hidden" name="node_id" id="waTargetNode" value="{{ node.id }}">
+      <label class="wa-plus" title="Отметить как проблему">
+        <input type="checkbox" name="is_problem" value="1" id="waProblemToggle" hidden>
+        <span id="waPlusIco">⚠︎</span>
+      </label>
+      <input type="text" name="text" class="wa-input" id="waTextInput" placeholder="Написать про «{{ node.name }}»…" autocomplete="off" required>
+      <button type="submit" class="wa-send" title="Отправить">➤</button>
+    </form>
+  </section>
+
+  <aside class="wa-info">
+    <div class="wa-info-scroll">
+      <div class="wa-info-card">
+        <div class="wa-info-h">Задачи <span class="wa-count">{{ open_tasks|length }}</span></div>
+        {% for t in open_tasks %}
+        <div class="wa-task-line">
+          <span class="wa-task-dot"></span>
+          <div>
+            <div>{{ t.title }}{% if t.node_id != node.id %} <small class="muted">· {{ t.node.name }}</small>{% endif %}</div>
+            <small class="muted">{{ t.assignee.display_name|default:"—" }}{% if t.due_date %} · до {{ t.due_date|date:"d.m.Y" }}{% endif %}</small>
+          </div>
+        </div>
+        {% empty %}<div class="muted" style="padding:10px 0">Открытых задач нет</div>{% endfor %}
+        <form method="post" action="{% url 'finsovet:node_task_add' node.id %}" class="stack" style="margin-top:10px">
+          {% csrf_token %}
+          <input class="field-input" name="title" placeholder="Новая задача…" required>
+          <div class="row">
+            {{ task_form.assignee }}
+            {{ task_form.due_date }}
+          </div>
+          <button class="btn sm" style="align-self:flex-start">+ Задача</button>
+        </form>
+      </div>
+
+      {% if open_problems %}
+      <div class="wa-info-card">
+        <div class="wa-info-h">⚠ Открытые вопросы</div>
+        {% for p in open_problems %}
+        <div class="wa-task-line"><span class="wa-task-dot red"></span><div>{{ p.name }}<br><small class="muted">{{ p.current_state_text|truncatechars:60 }}</small></div></div>
+        {% endfor %}
       </div>
       {% endif %}
-    </div>
-  </div>
 
-  <div class="card">
-    <div class="card-h">Задачи <span class="badge">{{ tasks|length }}</span></div>
-    <div class="card-b stack">
-      {% for t in tasks %}
-      <div class="task-line {% if t.status == 'done' %}is-done{% endif %}">
-        <span class="task-check {% if t.status == 'done' %}done{% endif %}">✓</span>
-        <div class="task-body">
-          <a href="{{ t.get_absolute_url }}" class="task-ttl">{{ t.title }}</a>
-          <small class="muted">{{ t.get_status_display }}{% if t.assignee %} · {{ t.assignee.display_name }}{% endif %}{% if t.due_date %} · {{ t.due_date|date:"d.m.Y" }}{% endif %}</small>
-        </div>
+      <div class="wa-info-card">
+        <div class="wa-info-h">Решения</div>
+        {% for d in decisions %}
+        <div class="wa-task-line"><span class="wa-task-dot green"></span><div>{{ d.text|truncatechars:70 }}<br><small class="muted">{% if d.responsible %}{{ d.responsible.display_name }}{% endif %}{% if d.due_date %} · {{ d.due_date|date:"d.m.Y" }}{% endif %}</small></div></div>
+        {% empty %}<div class="muted" style="padding:10px 0">Решений нет</div>{% endfor %}
+        <form method="post" action="{% url 'finsovet:decision_add' %}" class="stack" style="margin-top:10px">
+          {% csrf_token %}
+          <input type="hidden" name="node_id" value="{{ node.id }}">
+          <textarea class="field-input field-textarea" name="text" rows="2" placeholder="Какое решение приняли?" required></textarea>
+          <button class="btn sm" style="align-self:flex-start">+ Решение</button>
+        </form>
       </div>
-      {% empty %}<div class="muted">Задач нет</div>{% endfor %}
-
-      <form method="post" action="{% url 'finsovet:node_task_add' node.id %}" class="stack" style="border-top:1px solid var(--sep);padding-top:var(--sp-3)">
-        {% csrf_token %}
-        <input class="field-input" name="title" placeholder="Что сделать" required>
-        <div class="row">
-          {{ task_form.assignee }}
-          {{ task_form.due_date }}
-          <button class="btn sm">Создать</button>
-        </div>
-      </form>
     </div>
-  </div>
+  </aside>
 </div>
 
-<div class="card" style="margin-top:var(--sp-6)">
-  <div class="card-h">Решения по этой работе</div>
-  <div class="card-b stack">
-    {% for d in decisions %}
-    <div style="border-bottom:1px solid var(--sep);padding-bottom:8px">
-      <div>{{ d.text }}</div>
-      <small class="muted">{{ d.created_at|date:"d.m.Y" }}{% if d.responsible %} · Ответственный: {{ d.responsible.display_name }}{% endif %}{% if d.due_date %} · срок {{ d.due_date|date:"d.m.Y" }}{% endif %}</small>
-    </div>
-    {% empty %}<div class="muted">Решений нет</div>{% endfor %}
-    <form method="post" action="{% url 'finsovet:decision_add' %}" class="stack" style="border-top:1px solid var(--sep);padding-top:var(--sp-3)">
-      {% csrf_token %}
-      <input type="hidden" name="node_id" value="{{ node.id }}">
-      <textarea class="field-input field-textarea" name="text" rows="2" placeholder="Какое решение приняли?" required></textarea>
-      <div class="row">
-        {{ decision_form.responsible }}
-        {{ decision_form.due_date }}
-        <button class="btn sm">Записать решение</button>
-      </div>
-    </form>
-  </div>
-</div>
+<script>
+(function(){
+  var feed = document.getElementById('waFeed');
+  if (feed) feed.scrollTop = feed.scrollHeight;
 
-<div class="card" style="margin-top:var(--sp-6)">
-  <div class="card-h">Вся история</div>
-  <div class="card-b">
-    <ul class="timeline">
-      {% for e in entries %}
-      <li>
-        <div class="t-time">{{ e.created_at|date:"d.m.Y H:i" }} · {{ e.author.display_name|default:"—" }}</div>
-        <div class="t-text">{% if e.kind == 'problem' %}⚠ Проблема{% elif e.kind == 'comment' %}Комментарий{% else %}Состояние{% endif %}: {{ e.text }}</div>
-      </li>
-      {% empty %}<li class="muted">История пуста</li>{% endfor %}
-    </ul>
-  </div>
-</div>
+  var topics = document.getElementById('waTopics');
+  var targetInput = document.getElementById('waTargetNode');
+  var textInput = document.getElementById('waTextInput');
+  if (topics && targetInput) {
+    topics.querySelectorAll('.wa-topic').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        topics.querySelectorAll('.wa-topic').forEach(function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        targetInput.value = btn.dataset.nodeId;
+        if (textInput) { textInput.placeholder = 'Написать про «' + btn.dataset.label + '»…'; textInput.focus(); }
+      });
+    });
+  }
+  var toggle = document.getElementById('waProblemToggle');
+  var ico = document.getElementById('waPlusIco');
+  var plusLabel = ico ? ico.closest('.wa-plus') : null;
+  if (toggle && plusLabel) {
+    toggle.addEventListener('change', function () { plusLabel.classList.toggle('on', toggle.checked); });
+  }
+})();
+</script>
 {% endblock %}

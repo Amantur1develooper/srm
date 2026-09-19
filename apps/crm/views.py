@@ -225,6 +225,8 @@ def _apply_client_filters(request, qs, user):
         qs = qs.exclude(phone_normalized="")
     if g.get("has_task") == "1":
         qs = qs.filter(tasks__status__in=[Task.Status.NEW, Task.Status.IN_PROGRESS]).distinct()
+    if g.get("no_task") == "1":
+        qs = qs.exclude(tasks__status__in=[Task.Status.NEW, Task.Status.IN_PROGRESS]).distinct()
     if g.get("overdue_task") == "1":
         qs = qs.filter(
             tasks__status__in=[Task.Status.NEW, Task.Status.IN_PROGRESS],
@@ -1175,13 +1177,23 @@ def global_search(request):
     q = request.GET.get("q", "").strip()
     clients = tasks = []
     if q:
-        clients = clients_for(request.user).filter(
-            _search_q(q)
-            | Q(stage__name__icontains=q)
-            | Q(manager__first_name__icontains=q)
-        )[:50]
+        open_tasks_qs = Task.objects.filter(
+            status__in=[Task.Status.NEW, Task.Status.IN_PROGRESS]
+        ).order_by("due_date", "due_time")
+        clients = (
+            clients_for(request.user)
+            .filter(_search_q(q) | Q(stage__name__icontains=q) | Q(manager__first_name__icontains=q))
+            .select_related("stage", "manager", "funnel")
+            .prefetch_related(Prefetch("tasks", queryset=open_tasks_qs, to_attr="open_tasks"))[:50]
+        )
         tasks = tasks_for(request.user).filter(title__icontains=q)[:20]
-    return render(request, "crm/search.html", {"q": q, "clients": clients, "tasks": tasks})
+    return render(request, "crm/search.html", {
+        "q": q, "clients": clients, "tasks": tasks,
+        "stages": Stage.objects.filter(is_active=True),
+        "managers": User.objects.filter(is_active=True, role="manager").order_by("first_name", "username"),
+        "funnels": Funnel.objects.filter(is_active=True),
+        "sources": Client.Source.choices,
+    })
 
 
 @login_required

@@ -102,10 +102,11 @@
   </div>
 
   <div class="filter-pop" data-popover>
-    <button type="button" class="hmenu-trigger {% if current.has_task or current.overdue_task or current.has_phone %}active{% endif %}" data-pop-trigger>Ещё ▾</button>
+    <button type="button" class="hmenu-trigger {% if current.has_task or current.no_task or current.overdue_task or current.has_phone %}active{% endif %}" data-pop-trigger>Ещё ▾</button>
     <div class="pop-panel" data-pop-panel>
       <div class="pop-h">Дополнительно</div>
-      <label class="check-inline"><input class="field-check" type="checkbox" name="has_task" value="1" {% if current.has_task == '1' %}checked{% endif %}> Есть задача</label>
+      <label class="check-inline"><input class="field-check" type="checkbox" name="has_task" value="1" {% if current.has_task == '1' %}checked{% endif %} onclick="if(this.checked)this.form.no_task.checked=false"> Есть задача</label>
+      <label class="check-inline"><input class="field-check" type="checkbox" name="no_task" value="1" {% if current.no_task == '1' %}checked{% endif %} onclick="if(this.checked)this.form.has_task.checked=false"> Нет задач</label>
       <label class="check-inline"><input class="field-check" type="checkbox" name="overdue_task" value="1" {% if current.overdue_task == '1' %}checked{% endif %}> Просроченная задача</label>
       <label class="check-inline"><input class="field-check" type="checkbox" name="has_phone" value="1" {% if current.has_phone == '1' %}checked{% endif %}> С телефоном</label>
       <div class="pop-actions"><button class="btn sm block" type="submit">Применить</button></div>

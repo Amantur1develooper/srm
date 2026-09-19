@@ -757,7 +757,13 @@ td[data-task-cell]{min-width:170px;max-width:240px}
   font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--muted);text-transform:uppercase;
   padding:0 0 8px;border-bottom:1.5px solid var(--sep);margin-bottom:6px;
 }
-.fs-object-h{font-size:14px;font-weight:700;margin:14px 0 4px;color:var(--text)}
+.fs-object-h{
+  font-size:14px;font-weight:700;margin:14px 0 4px;color:var(--text);text-decoration:none;
+  display:flex;align-items:baseline;gap:8px;
+}
+.fs-object-h:hover{color:var(--blue);opacity:1;text-decoration:none}
+.fs-object-open{font-size:11px;font-weight:500;color:var(--muted);opacity:0;transition:opacity .12s}
+.fs-object-h:hover .fs-object-open{opacity:1}
 .fs-table{background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);overflow:hidden}
 .fs-row{display:flex;align-items:center;gap:var(--sp-3);padding:9px var(--sp-4);border-top:.5px solid var(--sep);position:relative}
 .fs-row:first-child{border-top:0}
@@ -815,11 +821,10 @@ td[data-task-cell]{min-width:170px;max-width:240px}
 .wa-ibtn:hover{background:var(--fill-hover);opacity:1}
 
 .wa-shell{
-  display:grid;grid-template-columns:280px 1fr 260px;gap:1px;background:var(--sep);
+  display:grid;grid-template-columns:1fr 260px;gap:1px;background:var(--sep);
   border:1px solid var(--sep);border-radius:var(--r-lg);overflow:hidden;
-  height:calc(100vh - var(--header-h) - 132px);box-shadow:var(--shadow-sm);
+  height:calc(100vh - var(--header-h) - 150px);box-shadow:var(--shadow-sm);
 }
-@media (max-width:980px){.wa-shell{grid-template-columns:240px 1fr}}
 @media (max-width:760px){.wa-shell{grid-template-columns:1fr;height:auto}}
 
 /* ---- левая колонка: список объектов ---- */

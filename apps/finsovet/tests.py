@@ -74,18 +74,19 @@ class FinsovetCoreTests(TestCase):
         self.assertContains(resp, "До заседания")
         self.assertNotContains(resp, "После заседания")
 
-    def test_chat_message_posts_to_child_and_shows_in_object_feed(self):
+    def test_chat_message_posts_to_node_and_shows_in_its_feed(self):
         self.client.login(username="boss", password="x")
         resp = self.client.post("/finsovet/message/add/", {"node_id": self.work.id, "text": "Из чата про лифт"})
-        self.assertRedirects(resp, f"/finsovet/?object={self.root.id}")
+        self.assertRedirects(resp, self.work.get_absolute_url())
         entry = Entry.objects.get(text="Из чата про лифт")
         self.assertEqual(entry.kind, Entry.Kind.COMMENT)
         self.assertEqual(entry.author, self.admin)
         self.assertIn(self.work.id, self.root.descendant_ids())
-        page = self.client.get(f"/finsovet/?object={self.root.id}")
-        self.assertContains(page, "Из чата про лифт")
+        # видно и в собственной карточке узла, и в объединённой ленте объекта-родителя
+        self.assertContains(self.client.get(self.work.get_absolute_url()), "Из чата про лифт")
+        self.assertContains(self.client.get(self.root.get_absolute_url()), "Из чата про лифт")
 
-    def test_chat_badge_counts_open_tasks_and_problems(self):
+    def test_dashboard_flags_open_problem_on_row(self):
         self.client.login(username="boss", password="x")
         self.assertEqual(self.root.open_tasks_count, 0)
         Task.objects.create(node=self.work, title="Проверить")
@@ -93,7 +94,8 @@ class FinsovetCoreTests(TestCase):
         Entry.objects.create(node=self.work, kind=Entry.Kind.PROBLEM, text="Сломалось")
         self.assertEqual(self.root.open_problems_count, 1)
         page = self.client.get("/finsovet/")
-        self.assertContains(page, "wa-badge red")  # проблема есть -> бейдж красный
+        self.assertContains(page, "fs-flag")  # ⚠ на строке узла с открытой проблемой
+        self.assertContains(page, "Сломалось")
 
     def test_decision_saved_with_node(self):
         self.client.login(username="boss", password="x")
