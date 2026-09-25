@@ -31,6 +31,7 @@ urlpatterns = [
 
     # Задачи
     path("tasks/", views.task_list, name="task_list"),
+    path("tasks/bulk/", views.task_bulk_action, name="task_bulk"),
     path("tasks/new/", views.task_create, name="task_create"),
     path("tasks/<int:pk>/", views.task_detail, name="task_detail"),
     path("tasks/<int:pk>/status/", views.task_set_status, name="task_set_status"),

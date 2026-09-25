@@ -555,7 +555,7 @@ body.selecting .ios-row .trail{display:none}
 }
 /* пока ничего не выделено — доступна только "Выбрать всё", остальные действия неактивны */
 .bulkbar.bulkbar-empty select,
-.bulkbar.bulkbar-empty button:not([data-select-all-btn]){opacity:.4;pointer-events:none}
+.bulkbar.bulkbar-empty button:not([data-select-all-btn]):not([data-task-select-all-btn]){opacity:.4;pointer-events:none}
 
 /* ---------- misc ---------- */
 .flash-wrap{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:100;display:flex;flex-direction:column;gap:8px;width:min(420px,calc(100vw - 28px))}
@@ -661,6 +661,12 @@ td[data-task-cell]{min-width:170px;max-width:240px}
 .titem.is-done{opacity:.48}
 .titem.is-done .ttext{text-decoration:line-through}
 .tcheck-form{flex:0 0 auto;display:flex}
+.titem .sel{width:20px;height:20px;flex:0 0 20px;display:none;align-items:center;justify-content:center;margin-top:2px}
+.titem .sel input{width:18px;height:18px;accent-color:var(--blue)}
+body.selecting .titem .sel{display:flex}
+body.selecting .titem .tcheck-form{display:none}
+body.selecting .titem{cursor:default}
+.titem.row-selected{background:var(--blue-tint)}
 .tcheck2{
   width:20px;height:20px;border-radius:50%;border:1.5px solid var(--border-strong);
   background:var(--surface);cursor:pointer;padding:0;flex:0 0 auto;transition:background .12s,border-color .12s,transform .08s;

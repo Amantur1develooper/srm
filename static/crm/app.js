@@ -222,6 +222,94 @@
     });
   });
 
+  // ---- список задач: режим выбора («Выбрать» / «по одному» / «Выбрать все») + массовые действия ----
+  const anyTaskBox = document.querySelector("[name=task_ids]");
+  const taskSelectToggle = document.getElementById("taskSelectToggle");
+  if (anyTaskBox || taskSelectToggle) {
+    const taskBoxes = () => document.querySelectorAll("[name=task_ids]");
+    const taskBar = document.querySelector("[data-task-bulkbar]");
+    const taskCounter = document.querySelector("[data-task-bulk-count]");
+
+    function markTaskRow(box) {
+      const row = box.closest("[data-task-select-row]");
+      if (row) row.classList.toggle("row-selected", box.checked);
+    }
+    function refreshTasks() {
+      const n = document.querySelectorAll("[name=task_ids]:checked").length;
+      const selecting = document.body.classList.contains("selecting");
+      if (taskBar) {
+        taskBar.hidden = !selecting;
+        taskBar.classList.toggle("bulkbar-empty", n === 0);
+      }
+      if (taskCounter) taskCounter.textContent = n;
+    }
+    document.addEventListener("change", function (e) {
+      if (e.target.name === "task_ids") { markTaskRow(e.target); refreshTasks(); }
+    });
+
+    if (taskSelectToggle) {
+      taskSelectToggle.addEventListener("click", function () {
+        const on = document.body.classList.toggle("selecting");
+        taskSelectToggle.textContent = on ? "Готово" : "Выбрать";
+        if (!on) taskBoxes().forEach((b) => { b.checked = false; markTaskRow(b); });
+        refreshTasks();
+      });
+    }
+    const taskSelectAllBtn = document.querySelector("[data-task-select-all-btn]");
+    if (taskSelectAllBtn) {
+      taskSelectAllBtn.addEventListener("click", function () {
+        const allChecked = Array.from(taskBoxes()).every((b) => b.checked);
+        taskBoxes().forEach((b) => { b.checked = !allChecked; markTaskRow(b); });
+        refreshTasks();
+      });
+    }
+    // «Выбрать все» одной кнопкой — сразу включает режим и отмечает всё видимое
+    const taskSelectAllNow = document.querySelector("[data-task-select-all-now]");
+    if (taskSelectAllNow) {
+      taskSelectAllNow.addEventListener("click", function () {
+        document.body.classList.add("selecting");
+        if (taskSelectToggle) taskSelectToggle.textContent = "Готово";
+        taskBoxes().forEach((b) => { b.checked = true; markTaskRow(b); });
+        refreshTasks();
+      });
+    }
+
+    // Клик по строке: в обычном режиме — открыть задачу; в режиме выбора — отметить (по одному).
+    document.querySelectorAll("[data-task-select-row]").forEach(function (row) {
+      row.addEventListener("click", function (e) {
+        if (e.target.closest("a,button,form,input,select,textarea,label,[contenteditable]")) return;
+        if (document.body.classList.contains("selecting")) {
+          const box = row.querySelector("[name=task_ids]");
+          if (box) { box.checked = !box.checked; markTaskRow(box); refreshTasks(); }
+        } else if (row.dataset.href) {
+          window.location = row.dataset.href;
+        }
+      });
+    });
+
+    // Массовое действие из панели (сейчас — «✓ Готово»).
+    document.querySelectorAll("[data-task-bulk-submit]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        const ids = Array.from(document.querySelectorAll("[name=task_ids]:checked")).map((b) => b.value);
+        if (!ids.length) return;
+        const body = new URLSearchParams();
+        ids.forEach((id) => body.append("task_ids", id));
+        body.set("action", btn.dataset.taskBulkAction || "");
+        btn.disabled = true;
+        fetch(btn.dataset.taskBulkSubmit, {
+          method: "POST",
+          headers: { "X-Requested-With": "XMLHttpRequest", "X-CSRFToken": csrf(), "Content-Type": "application/x-www-form-urlencoded" },
+          body: body.toString(),
+        })
+          .then(() => location.reload())
+          .catch(() => { btn.disabled = false; alert("Не удалось выполнить действие"); });
+      });
+    });
+
+    taskBoxes().forEach(markTaskRow);
+    refreshTasks();
+  }
+
   // ---- Канбан drag & drop ----
   const board = document.querySelector("[data-kanban]");
   if (board) {

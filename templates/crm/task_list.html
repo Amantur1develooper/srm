@@ -3,7 +3,13 @@
 {% block content %}
 <div class="page-head">
   <div><h1>Задачи</h1></div>
-  <div class="actions"><a href="{% url 'task_create' %}" class="btn secondary sm">＋ Задача</a></div>
+  <div class="actions">
+    <div class="segbtn">
+      <button type="button" class="btn tint" id="taskSelectToggle">Выбрать</button>
+      <button type="button" class="btn tint" data-task-select-all-now>Выбрать все</button>
+    </div>
+    <a href="{% url 'task_create' %}" class="btn secondary sm">＋ Задача</a>
+  </div>
 </div>
 
 <div class="chips" style="margin-bottom:var(--sp-3)">
@@ -33,12 +39,20 @@
   </details>
 </form>
 
+<div class="bulkbar" data-task-bulkbar hidden>
+  <b><span data-task-bulk-count>0</span> выбрано</b>
+  <button type="button" class="btn ghost sm" data-task-select-all-btn>Все на странице</button>
+  <span class="sp" style="flex:1"></span>
+  <button type="button" class="btn sm success" data-task-bulk-submit="{% url 'task_bulk' %}" data-task-bulk-action="done">✓ Готово</button>
+</div>
+
 <div class="tlist" data-inline-url="{% url 'task_inline_update' 0 %}">
   {% for t in tasks %}
   {% ifchanged t.due_date %}
   <div class="tgroup">{% if t.due_date %}{{ t.due_date|date:"j E, l"|capfirst }}{% else %}Без срока{% endif %}</div>
   {% endifchanged %}
-  <div class="titem tone-{{ t.due_tone }}{% if t.status == 'done' %} is-done{% endif %}" data-task-id="{{ t.id }}" data-row-link="{{ t.get_absolute_url }}">
+  <div class="titem tone-{{ t.due_tone }}{% if t.status == 'done' %} is-done{% endif %}" data-task-id="{{ t.id }}" data-task-select-row data-href="{{ t.get_absolute_url }}">
+    <span class="sel"><input type="checkbox" name="task_ids" value="{{ t.id }}"></span>
     <form method="post" action="{% url 'task_set_status' t.id %}" data-tcheck-form class="tcheck-form">{% csrf_token %}
       <input type="hidden" name="status" value="{% if t.status == 'done' %}new{% else %}done{% endif %}">
       <button type="submit" class="tcheck2{% if t.status == 'done' %} done{% endif %}" aria-label="Выполнено"></button>

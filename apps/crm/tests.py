@@ -232,6 +232,23 @@ class AccessTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(Task.objects.filter(client=self.c1, title="Позвонить").count(), 2)
 
+    def test_task_bulk_mark_done(self):
+        self.client.login(username="m1", password="x")
+        t1 = Task.objects.create(title="Позвонить", client=self.c1, manager=self.m1)
+        t2 = Task.objects.create(title="Написать", client=self.c1, manager=self.m1)
+        other = Task.objects.create(title="Чужая", client=self.c2, manager=self.m2)
+        r = self.client.post(
+            "/tasks/bulk/", {"task_ids": [t1.id, t2.id, other.id], "action": "done"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.json()["ok"])
+        t1.refresh_from_db(); t2.refresh_from_db(); other.refresh_from_db()
+        self.assertEqual(t1.status, "done")
+        self.assertEqual(t2.status, "done")
+        self.assertNotEqual(other.status, "done")  # чужая задача менеджеру m1 не видна и не трогается
+        self.assertTrue(self.c1.history.filter(kind="task").count() >= 2)
+
     def test_phone_normalized_and_search(self):
         self.client.login(username="m1", password="x")
         c = Client.objects.create(full_name="Поиск", stage=self.stage, manager=self.m1, phone="0555 12-34-56")

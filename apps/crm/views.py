@@ -806,6 +806,32 @@ def task_set_status(request, pk):
 
 @login_required
 @require_POST
+def task_bulk_action(request):
+    """Массовое действие над выбранными задачами (сейчас — отметить выполненными)."""
+    ids = request.POST.getlist("task_ids")
+    action = request.POST.get("action", "")
+    tasks = list(tasks_for(request.user).filter(id__in=ids).select_related("client"))
+    if not tasks:
+        return JsonResponse({"ok": False, "error": "Не выбрано ни одной задачи"}, status=400)
+    if action == "done":
+        n = 0
+        for t in tasks:
+            if t.status != Task.Status.DONE:
+                t.status = Task.Status.DONE
+                t.completed_at = timezone.now()
+                t.save(update_fields=["status", "completed_at", "updated_at"])
+                log_history(t.client, ClientHistory.Kind.TASK, f"Задача «{t.title}»: {t.get_status_display()}", request.user)
+                n += 1
+        flash.success(request, f"Отмечено выполненными: {n}")
+    else:
+        return JsonResponse({"ok": False, "error": "Неизвестное действие"}, status=400)
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        return JsonResponse({"ok": True})
+    return redirect(request.META.get("HTTP_REFERER") or reverse("task_list"))
+
+
+@login_required
+@require_POST
 def task_repeat(request, pk):
     """Повторить задачу с новой датой (после «Выполнено» не создавать заново вручную)."""
     task = get_object_or_404(tasks_for(request.user), pk=pk)
