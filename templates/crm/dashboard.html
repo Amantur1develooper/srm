@@ -15,6 +15,26 @@
   <a class="stat" href="{% url 'task_list' %}?tab=today"><div class="k">Задач сегодня</div><div class="v">{{ tasks_today }}</div></a>
 </div>
 
+{% if nav_recent_notifications %}
+<div class="card" style="margin-bottom:var(--sp-4)">
+  <div class="card-h">
+    Уведомления{% if nav_notifications %} <span class="badge red">{{ nav_notifications }}</span>{% endif %}
+    <a href="{% url 'notifications' %}" class="muted" style="margin-left:auto;font-size:13px;font-weight:500">Все →</a>
+  </div>
+  <div class="card-b stack">
+    {% for n in nav_recent_notifications|slice:":5" %}
+    <div class="row" style="justify-content:space-between;gap:var(--sp-3)">
+      <div>
+        {% if n.url %}<a href="{{ n.url }}"><b>{{ n.text }}</b></a>{% else %}<b>{{ n.text }}</b>{% endif %}
+        <br><small class="muted">{{ n.get_kind_display }} · {{ n.created_at|date:"d.m H:i" }}</small>
+      </div>
+      {% if not n.is_read %}<span class="badge indigo">новое</span>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
 <div class="stats stage-tiles" style="margin-bottom:var(--sp-4)">
   {% for s in dash_stages %}
   <a class="stat stage-tile {% if stage_slug == s.slug %}selected{% endif %}" href="?stage={{ s.slug }}" style="--tile-color:{{ s.color }}">
