@@ -1,0 +1,72 @@
+{% extends "crm/base.html" %}
+{% block title %}{{ question.title }} — Финсовет{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <a href="{% url 'finsovet:dashboard' %}" class="muted">← Финсовет</a>
+    <h1 style="margin-top:4px;font-size:22px">
+      <span class="kf" contenteditable="true" data-inline-edit
+            data-url="{% url 'finsovet:question_inline_update' question.id %}" data-field="title"
+            data-placeholder="Вопрос">{{ question.title }}</span>
+    </h1>
+    <small class="muted">{{ question.block.name }}</small>
+  </div>
+</div>
+
+<div class="detail-grid">
+  <div class="card">
+    <div class="card-h">Данные</div>
+    <div class="card-b">
+      <dl class="dl">
+        <dt>Статус</dt>
+        <dd>
+          <select class="q-status-sel status-{{ question.status }}" data-inline-change
+                  data-url="{% url 'finsovet:question_inline_update' question.id %}" data-field="status">
+            {% for val, label in statuses %}<option value="{{ val }}" {% if val == question.status %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </dd>
+
+        <dt>Действие</dt>
+        <dd class="kf" contenteditable="true" data-inline-edit
+            data-url="{% url 'finsovet:question_inline_update' question.id %}" data-field="action"
+            data-placeholder="—">{{ question.action }}</dd>
+
+        <dt>Срок</dt>
+        <dd><input type="date" class="field-input {{ question.due_tone }}" style="max-width:170px" data-inline-change
+                   data-url="{% url 'finsovet:question_inline_update' question.id %}" data-field="due_date"
+                   value="{{ question.due_date|date:'Y-m-d' }}"></dd>
+
+        <dt>Ответственный</dt>
+        <dd>
+          <select class="field-input field-select" style="max-width:220px" data-inline-change
+                  data-url="{% url 'finsovet:question_inline_update' question.id %}" data-field="responsible">
+            <option value="">—</option>
+            {% for p in people %}<option value="{{ p.id }}" {% if p.id == question.responsible_id %}selected{% endif %}>{{ p.display_name }}</option>{% endfor %}
+          </select>
+        </dd>
+      </dl>
+
+      <form method="post" action="{% url 'finsovet:question_comment_add' question.id %}" class="stack" style="border-top:1px solid var(--sep);margin-top:var(--sp-4);padding-top:var(--sp-3)">
+        {% csrf_token %}
+        <b>+ Комментарий</b>
+        <textarea class="field-input field-textarea" name="text" rows="2" placeholder="Что произошло?" required></textarea>
+        <button class="btn sm" type="submit" style="align-self:flex-start">Добавить</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h">История</div>
+    <div class="card-b">
+      <ul class="timeline">
+        {% for e in entries %}
+        <li>
+          <div class="t-time">{{ e.created_at|date:"d.m.Y H:i" }} · {{ e.author.display_name|default:"—" }}</div>
+          <div class="t-text">{% if e.kind == 'change' %}⚙ {% endif %}{{ e.text }}</div>
+        </li>
+        {% empty %}<li class="muted">История пуста</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

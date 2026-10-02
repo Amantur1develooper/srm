@@ -1,0 +1,55 @@
+{% comment %}Строка вопроса: блок / вопрос / статус / последний комментарий / действие / срок / ответственный.
+Всё редактируется на месте: клик → изменить → сохранить.{% endcomment %}
+<div class="q-row">
+  <span class="q-block">{{ q.block.name }}</span>
+
+  <a class="q-title" href="{{ q.get_absolute_url }}">{{ q.title }}</a>
+
+  <span class="q-status">
+    <select class="q-status-sel status-{{ q.status }}" data-inline-change
+            data-url="{% url 'finsovet:question_inline_update' q.id %}" data-field="status">
+      {% for val, label in statuses %}
+      <option value="{{ val }}" {% if val == q.status %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </span>
+
+  <span class="q-comment-wrap">
+    <div class="filter-pop" data-popover>
+      <button type="button" class="q-comment-btn" data-pop-trigger>
+        {% with c=q.last_comment %}
+          {% if c %}{{ c.text|truncatechars:46 }}{% else %}<span class="muted-2">— добавить —</span>{% endif %}
+        {% endwith %}
+      </button>
+      <div class="pop-panel" data-pop-panel>
+        <div class="pop-h">{{ q.title }} — последние записи</div>
+        {% for e in q.recent_entries %}
+        <div class="q-hist-item">
+          <div><b>{{ e.created_at|date:"d.m H:i" }}</b> {% if e.kind == 'change' %}<span class="muted">⚙</span> {% endif %}{{ e.text|truncatechars:70 }}</div>
+          <div class="muted" style="font-size:11px">{{ e.author.display_name|default:"—" }}</div>
+        </div>
+        {% empty %}<div class="muted">Пока пусто</div>{% endfor %}
+        <form method="post" action="{% url 'finsovet:question_comment_add' q.id %}" class="stack" style="margin-top:8px;border-top:1px solid var(--sep);padding-top:8px">
+          {% csrf_token %}
+          <textarea class="field-input field-textarea" name="text" rows="2" placeholder="Новый комментарий…" required></textarea>
+          <div class="pop-actions"><button class="btn sm block" type="submit">+ Комментарий</button></div>
+        </form>
+        <div class="pop-actions"><a href="{{ q.get_absolute_url }}" class="btn ghost sm block">Вся история</a></div>
+      </div>
+    </div>
+  </span>
+
+  <span class="q-action kf" contenteditable="true" data-inline-edit
+        data-url="{% url 'finsovet:question_inline_update' q.id %}" data-field="action"
+        data-placeholder="—">{{ q.action }}</span>
+
+  <input type="date" class="q-due {{ q.due_tone }}" data-inline-change
+         data-url="{% url 'finsovet:question_inline_update' q.id %}" data-field="due_date"
+         value="{{ q.due_date|date:'Y-m-d' }}">
+
+  <select class="q-resp" data-inline-change
+          data-url="{% url 'finsovet:question_inline_update' q.id %}" data-field="responsible">
+    <option value="">—</option>
+    {% for p in people %}<option value="{{ p.id }}" {% if p.id == q.responsible_id %}selected{% endif %}>{{ p.display_name }}</option>{% endfor %}
+  </select>
+</div>

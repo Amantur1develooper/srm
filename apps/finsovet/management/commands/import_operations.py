@@ -1,9 +1,9 @@
-"""Импорт листа «Операционка» (Excel) в дерево Финсовета.
+"""Импорт листа «Операционка» (Excel) в плоскую таблицу вопросов Финсовета.
 
 Формат листа: ОТДЕЛЫ | НАПРАВЛЕНИЯ | проекты | СТАТУС | статус | дата | комментатор
-— это тот же принцип «СЕЙЧАС + история», что и в Финсовете, просто в Excel.
-Каждая строка -> запись (Entry) в узле дерева; повтор одного и того же
-направления/проекта -> новая запись в истории того же узла, а не дубль.
+Каждая содержательная строка -> Вопрос (Block + название) с записью в истории.
+Повтор одного и того же направления/проекта в блоке -> не новый вопрос,
+а новая запись в истории уже существующего.
 
 Использование:
     python manage.py import_operations "<путь к .xlsx>" [--sheet "Операционка"] [--dry-run]
@@ -19,34 +19,38 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
-from apps.finsovet.models import Entry, Node, Section
+from apps.finsovet.models import Block, Entry, Question
 
 User = get_user_model()
 
-# Отдел (колонка A) -> (slug раздела Финсовета, читаемое имя).
-# Совпадает с уже посеянными разделами там, где это один и тот же отдел.
-DEPARTMENT_TO_SECTION = {
-    "ОТДЕЛ ПРОДАЖ": ("sales", "Отдел продаж"),
-    "МАРКЕТИНГ": ("marketing", "Маркетинг"),
-    "СПЕЦРЕЖИМ": ("specrezhim", "Спецрежим"),
-    "ПРОИЗВОДСТВО": ("production", "Производство"),
-    "АДМИН": ("admin", "Административное управление"),
-    "ФИНАНСЫ": ("finance", "Финансы"),
+# Отдел (колонка A) -> блок по умолчанию (для направлений этого отдела).
+DEPARTMENT_TO_BLOCK = {
+    "ОТДЕЛ ПРОДАЖ": "Продажи",
+    "МАРКЕТИНГ": "Маркетинг",
+    "СПЕЦРЕЖИМ": "Спецрежим",
+    "АДМИН": "Общие",
+    "ФИНАНСЫ": "Финансы",
+}
+# Для «ПРОИЗВОДСТВО» блоком становится само направление (колонка B) —
+# совпадает со списком блоков в ТЗ.
+PRODUCTION_DIRECTION_TO_BLOCK = {
+    "АЛА ТОО": "Ала Тоо",
+    "ЭКО ПАРК": "Эко Парк",
+    "К БЛОК": "К Блок",
+    "ЖЗИ": "ЖЗИ",
+    "АБВГ": "АБВ",
+    "ДЕ": "ДЕ",
 }
 
-# Частые комментаторы, которых стоит завести пользователями для атрибуции
-# (доступ к Финсовету им НЕ выдаётся автоматически — это отдельная галочка).
 EXTRA_PEOPLE = {
     "Марат": "marat",
     "Жайнак": "zhainak",
     "Бакыт ака": "bakyt",
 }
 
-PROBLEM_MARKERS = ("открытый вопрос", "открыт вопрос")
-
 
 class Command(BaseCommand):
-    help = "Импортирует лист «Операционка» из Excel в дерево Финсовета (разделы -> направления -> проекты)."
+    help = "Импортирует лист «Операционка» из Excel в таблицу вопросов Финсовета."
 
     def add_arguments(self, parser):
         parser.add_argument("path", help="Путь к .xlsx файлу")
@@ -64,31 +68,19 @@ class Command(BaseCommand):
             raise CommandError(f"Листа «{options['sheet']}» нет. Есть: {', '.join(wb.sheetnames)}")
         ws = wb[options["sheet"]]
 
-        sections = self._ensure_sections()
         people = self._ensure_people()
-
-        stats = {"nodes": 0, "entries": 0, "rows": 0, "skipped": 0}
+        stats = {"questions": 0, "entries": 0, "rows": 0, "skipped": 0}
 
         with transaction.atomic():
-            self._import_rows(ws, sections, people, stats)
+            self._import_rows(ws, people, stats)
             if dry:
                 transaction.set_rollback(True)
 
         self.stdout.write(self.style.SUCCESS(
             f"{'[DRY-RUN] ' if dry else ''}строк обработано: {stats['rows']}, "
-            f"узлов создано/найдено: {stats['nodes']}, записей истории: {stats['entries']}, "
+            f"вопросов создано/найдено: {stats['questions']}, записей истории: {stats['entries']}, "
             f"пропущено пустых: {stats['skipped']}"
         ))
-
-    def _ensure_sections(self):
-        result = {}
-        for i, (dept, (slug, name)) in enumerate(DEPARTMENT_TO_SECTION.items()):
-            section, _ = Section.objects.get_or_create(slug=slug, defaults={"name": name, "order": i})
-            if section.name != name:
-                section.name = name
-                section.save(update_fields=["name"])
-            result[dept] = section
-        return result
 
     def _ensure_people(self):
         people = {}
@@ -117,17 +109,33 @@ class Command(BaseCommand):
                 return user
         return None
 
-    def _get_or_create_node(self, section, parent, name, stats):
+    def _get_block(self, name, cache):
         name = name.strip()
-        node, created = Node.objects.get_or_create(section=section, parent=parent, name=name)
-        if created:
-            stats["nodes"] += 1
-        return node
+        if name in cache:
+            return cache[name]
+        block, _ = Block.objects.get_or_create(name=name, defaults={"slug": self._slug(name), "order": 99})
+        cache[name] = block
+        return block
 
-    def _import_rows(self, ws, sections, people, stats):
-        current_dept_key = None
-        current_section = None
-        current_direction = None
+    @staticmethod
+    def _slug(name):
+        import uuid
+
+        base = "".join(ch for ch in name.lower() if ch.isalnum())[:60]
+        return f"{base}-{uuid.uuid4().hex[:6]}" if base else f"block-{uuid.uuid4().hex[:8]}"
+
+    def _get_or_create_question(self, block, title, stats):
+        title = title.strip()[:300]
+        q, created = Question.objects.get_or_create(block=block, title=title)
+        if created:
+            stats["questions"] += 1
+        return q
+
+    def _import_rows(self, ws, people, stats):
+        block_cache = {}
+        current_dept = None
+        current_direction = None  # для ПРОИЗВОДСТВА: название направления (= блок)
+        current_block = None      # для остальных отделов: блок всей секции
         current_date = None
 
         for row in ws.iter_rows(min_row=4):
@@ -136,40 +144,56 @@ class Command(BaseCommand):
             c = self._s(row[2].value) if len(row) > 2 else ""
             d = self._s(row[3].value) if len(row) > 3 else ""
             f = row[5].value if len(row) > 5 else None
+            e = row[4].value if len(row) > 4 else None
             g = self._s(row[6].value) if len(row) > 6 else ""
 
             if a:
-                current_dept_key = next((k for k in DEPARTMENT_TO_SECTION if k in a.upper()), a.upper())
-                current_section = sections.get(current_dept_key)
+                current_dept = next((k for k in list(DEPARTMENT_TO_BLOCK) + ["ПРОИЗВОДСТВО"] if k in a.upper()), a.upper())
                 current_direction = None
-            if not current_section:
-                continue  # строка до первого встреченного отдела
+                current_block = None
+                if current_dept != "ПРОИЗВОДСТВО":
+                    block_name = DEPARTMENT_TO_BLOCK.get(current_dept, current_dept.title())
+                    current_block = self._get_block(block_name, block_cache)
 
             if b:
-                current_direction = self._get_or_create_node(current_section, None, b, stats)
+                if current_dept == "ПРОИЗВОДСТВО":
+                    b_up = b.strip().upper()
+                    block_name = next((v for k, v in PRODUCTION_DIRECTION_TO_BLOCK.items() if k in b_up), b.strip())
+                    current_direction = self._get_block(block_name, block_cache)
+                else:
+                    current_block = self._get_block(DEPARTMENT_TO_BLOCK.get(current_dept, current_dept or b), block_cache) if current_dept else current_block
 
-            if isinstance(f, dt.datetime):
-                current_date = f
+            target_block = current_direction if current_dept == "ПРОИЗВОДСТВО" else current_block
+            if target_block is None:
+                continue  # строка до первого встреченного отдела/направления
 
-            if not c and not d:
+            date_val = f if isinstance(f, dt.datetime) else (e if isinstance(e, dt.datetime) else None)
+            if date_val:
+                current_date = date_val
+
+            if not c and not d and not b:
+                stats["skipped"] += 1
+                continue
+            if not d:
                 stats["skipped"] += 1
                 continue
 
             stats["rows"] += 1
-            target = self._get_or_create_node(current_section, current_direction, c, stats) if c else current_direction
-            if target is None or not d:
-                continue
+            # В ПРОИЗВОДСТВЕ: конкретная работа (C) -> вопрос; без C -> общий вопрос по блоку.
+            # В остальных отделах: направление (B) -> вопрос.
+            if current_dept == "ПРОИЗВОДСТВО":
+                title = c if c else (b if b else target_block.name)
+            else:
+                title = b if b else target_block.name
+            question = self._get_or_create_question(target_block, title, stats)
 
-            text = d
-            kind = Entry.Kind.PROBLEM if any(m in d.lower() for m in PROBLEM_MARKERS) else Entry.Kind.STATE
             author = self._match_author(g, people)
-            if g:
-                text = f"{d}\n\n👤 {g}"
-
-            entry = Entry.objects.create(node=target, kind=kind, text=text, author=author)
+            text = d if not g else f"{d}\n\n👤 {g}"
+            entry = Entry.objects.create(question=question, kind=Entry.Kind.COMMENT, text=text, author=author)
             if current_date:
                 aware = timezone.make_aware(dt.datetime.combine(current_date.date(), dt.time(12, 0)))
                 Entry.objects.filter(pk=entry.pk).update(created_at=aware)
+                Question.objects.filter(pk=question.pk).update(updated_at=aware)
             stats["entries"] += 1
 
     @staticmethod

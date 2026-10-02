@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 
-def log_entry(node, kind, text, author=None):
+def log_entry(question, kind, text, author=None):
     from .models import Entry
 
-    return Entry.objects.create(node=node, kind=kind, text=text, author=author)
+    return Entry.objects.create(question=question, kind=kind, text=text, author=author)
 
 
-def log_task_event(task, text, author=None):
-    from .models import TaskEvent
+def log_change(question, text, author=None):
+    """Автозапись об изменении поля (статус/действие/срок/ответственный) — для истории."""
+    from .models import Entry
 
-    return TaskEvent.objects.create(task=task, text=text, author=author)
+    return log_entry(question, Entry.Kind.CHANGE, text, author)

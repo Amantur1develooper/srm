@@ -2,50 +2,58 @@
 {% block title %}Финсовет — Webordo{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><h1>Финсовет</h1><small>Актуальная картина на сегодня — кликните на строку, чтобы открыть переписку и историю</small></div>
+  <div><h1>Финсовет</h1><small>{{ total }} вопрос{{ total|pluralize:"ов" }}</small></div>
   <div class="actions">
-    <div class="fs-pop" data-popover>
+    <div class="filter-pop" data-popover>
       <button type="button" class="btn" data-pop-trigger>＋ Добавить</button>
-      <div class="pop-panel" data-pop-panel style="width:340px">
-        <div class="pop-h">Куда и что произошло</div>
-        <form method="post" action="{% url 'finsovet:entry_add' %}">
+      <div class="pop-panel" data-pop-panel style="width:320px">
+        <div class="pop-h">Новый вопрос</div>
+        <form method="post" action="{% url 'finsovet:question_add' %}">
           {% csrf_token %}
           {% include "crm/_form.html" with form=quick_form %}
           <div class="pop-actions"><button class="btn sm block" type="submit">Сохранить</button></div>
         </form>
       </div>
     </div>
-    <a href="{% url 'finsovet:changes' %}" class="btn secondary">Изменения</a>
-    <a href="{% url 'finsovet:protocol_list' %}" class="btn secondary">Протокол</a>
+    <a href="{% url 'finsovet:today' %}" class="btn secondary">Сегодня</a>
     <a href="{% url 'finsovet:task_list' %}" class="btn secondary">Задачи</a>
-    <a href="{% url 'finsovet:structure' %}" class="btn ghost" title="Структура: разделы и объекты">⚙️</a>
+    <a href="{% url 'finsovet:structure' %}" class="btn ghost" title="Блоки">⚙️</a>
   </div>
 </div>
 
-<form method="get" class="stack" style="margin-bottom:var(--sp-4)" data-live-search>
-  <input class="field-input" type="search" name="q" placeholder="Поиск: объект, работа, человек, задача, слово…"
+<form method="get" class="stack" style="margin-bottom:var(--sp-3)" data-live-search>
+  <input class="field-input" type="search" name="q" placeholder="Поиск: вопрос, действие, комментарий…"
          value="{{ q }}" autocomplete="off">
 </form>
 
-{% if search_mode %}<div class="muted" style="margin-bottom:var(--sp-3)">Результаты по «{{ q }}» — <a href="{% url 'finsovet:dashboard' %}">сбросить</a></div>{% endif %}
-
-{% for g in groups %}
-<div class="fs-section">
-  <div class="fs-section-h">{{ g.section.name }}</div>
-  {% for obj in g.objects %}
-    {% if obj.root %}<a class="fs-object-h" href="{{ obj.root.get_absolute_url }}">{{ obj.root.name }} <span class="fs-object-open">переписка →</span></a>{% endif %}
-    <div class="fs-table">
-      {% for node, depth in obj.rows %}
-        {% include "finsovet/_node_row.html" with node=node depth=depth %}
-      {% endfor %}
-    </div>
+<div class="row filter-row" style="margin-bottom:var(--sp-3);flex-wrap:wrap">
+  <a href="?" class="chip {% if not block_slug %}active{% endif %}">Все блоки</a>
+  {% for b in blocks %}
+  <a href="?block={{ b.slug }}" class="chip {% if block_slug == b.slug %}active{% endif %}">{{ b.name }}</a>
+  {% endfor %}
+  <span class="sp" style="flex:1"></span>
+  <a href="?{% if block_slug %}block={{ block_slug }}&{% endif %}" class="chip {% if not status %}active{% endif %}">Любой статус</a>
+  {% for val, label in statuses %}
+  <a href="?{% if block_slug %}block={{ block_slug }}&{% endif %}status={{ val }}" class="chip status-{{ val }} {% if status == val %}active{% endif %}">{{ label }}</a>
   {% endfor %}
 </div>
-{% empty %}
-<div class="empty">
-  <div class="big">🗂️</div>
-  {% if search_mode %}Ничего не найдено{% else %}Пока пусто. Разделы есть (Финансы / Продажи / Управление / Производство) —
-  добавьте объекты в <a href="{% url 'finsovet:structure' %}">Структуре</a>, дальше всё через «＋ Добавить».{% endif %}
+
+<div class="q-table">
+  <div class="q-row q-head">
+    <span class="q-block">Блок</span>
+    <span class="q-title">Вопрос</span>
+    <span class="q-status">Статус</span>
+    <span class="q-comment-wrap">Последний комментарий</span>
+    <span class="q-action">Действие</span>
+    <span class="q-due">Срок</span>
+    <span class="q-resp">Ответственный</span>
+  </div>
+  {% for q in questions %}
+    {% include "finsovet/_question_row.html" %}
+  {% empty %}
+  <div class="empty"><div class="big">🗂️</div>
+    {% if q or block_slug or status %}Ничего не найдено{% else %}Пока пусто — нажмите «＋ Добавить»{% endif %}
+  </div>
+  {% endfor %}
 </div>
-{% endfor %}
 {% endblock %}

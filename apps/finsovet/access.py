@@ -6,6 +6,10 @@ from functools import wraps
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 
+# Фиксированный список ответственных — выбор только из них, без ручного ввода.
+# Список можно расширять: добавить пользователя с таким username.
+RESPONSIBLE_USERNAMES = ["marat", "zhainak", "bakyt", "maksat", "doolotake", "azamat"]
+
 
 def finsovet_required(view):
     @wraps(view)
@@ -18,12 +22,13 @@ def finsovet_required(view):
     return wrapper
 
 
-def finsovet_members():
-    """Пользователи, которых можно выбрать автором/ответственным (админы + все с доступом)."""
+def responsible_people():
+    """Фиксированный список ответственных (Марат, Жайнак, Бакыт аке, Максат, Дөөлөт аке, Азамат)."""
     from django.contrib.auth import get_user_model
-    from django.db.models import Q
 
     User = get_user_model()
-    return User.objects.filter(
-        Q(can_access_finsovet=True) | Q(role="admin") | Q(is_superuser=True), is_active=True
-    ).order_by("first_name", "username")
+    return User.objects.filter(username__in=RESPONSIBLE_USERNAMES, is_active=True).order_by("first_name")
+
+
+# Исторический алиас — используется там же, где раньше выбирали «кто сообщил».
+finsovet_members = responsible_people

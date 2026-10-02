@@ -1,0 +1,24 @@
+{% extends "crm/base.html" %}
+{% block title %}Сегодня — Финсовет{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><a href="{% url 'finsovet:dashboard' %}" class="muted">← Финсовет</a><h1 style="margin-top:4px">Сегодня</h1><small>{{ today|date:"d.m.Y" }} — что изменилось</small></div>
+</div>
+
+{% if not entries %}
+<div class="empty"><div class="big">🕊️</div>Сегодня изменений ещё не было</div>
+{% else %}
+<div class="card">
+  <div class="card-b stack">
+    {% for e in entries %}
+    <div style="border-bottom:1px solid var(--sep);padding-bottom:8px">
+      <b>{{ e.question.block.name }}</b> —
+      <a href="{{ e.question.get_absolute_url }}">{{ e.question.title }}</a>
+      <div>{% if e.kind == 'change' %}⚙ {% endif %}{{ e.text }}</div>
+      <small class="muted">{{ e.created_at|date:"H:i" }} · {{ e.author.display_name|default:"—" }}</small>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}
