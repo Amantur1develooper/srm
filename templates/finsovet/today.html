@@ -1,5 +1,6 @@
 {% extends "crm/base.html" %}
 {% block title %}Сегодня — Финсовет{% endblock %}
+{% block body_class %}fs-notopbar{% endblock %}
 {% block content %}
 <div class="page-head">
   <div><a href="{% url 'finsovet:dashboard' %}" class="muted">← Финсовет</a><h1 style="margin-top:4px">Сегодня</h1><small>{{ today|date:"d.m.Y" }} — что изменилось</small></div>

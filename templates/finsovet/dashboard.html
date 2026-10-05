@@ -1,24 +1,24 @@
 {% extends "crm/base.html" %}
 {% block title %}Финсовет — Webordo{% endblock %}
+{% block body_class %}fs-notopbar{% endblock %}
 {% block content %}
-<div class="page-head">
-  <div><h1>Финсовет</h1><small>{{ total }} вопрос{{ total|pluralize:"ов" }}</small></div>
-  <div class="actions">
-    <div class="filter-pop" data-popover>
-      <button type="button" class="btn" data-pop-trigger>＋ Добавить</button>
-      <div class="pop-panel" data-pop-panel style="width:320px">
-        <div class="pop-h">Новый вопрос</div>
-        <form method="post" action="{% url 'finsovet:question_add' %}">
-          {% csrf_token %}
-          {% include "crm/_form.html" with form=quick_form %}
-          <div class="pop-actions"><button class="btn sm block" type="submit">Сохранить</button></div>
-        </form>
-      </div>
+<div class="fs-toolbar">
+  <div class="filter-pop" data-popover>
+    <button type="button" class="btn" data-pop-trigger>＋ Добавить</button>
+    <div class="pop-panel" data-pop-panel style="width:320px">
+      <div class="pop-h">Новый вопрос</div>
+      <form method="post" action="{% url 'finsovet:question_add' %}">
+        {% csrf_token %}
+        {% include "crm/_form.html" with form=quick_form %}
+        <div class="pop-actions"><button class="btn sm block" type="submit">Сохранить</button></div>
+      </form>
     </div>
-    <a href="{% url 'finsovet:today' %}" class="btn secondary">Сегодня</a>
-    <a href="{% url 'finsovet:task_list' %}" class="btn secondary">Задачи</a>
-    <a href="{% url 'finsovet:structure' %}" class="btn ghost" title="Блоки">⚙️</a>
   </div>
+  <a href="{% url 'finsovet:today' %}" class="btn secondary">Сегодня</a>
+  <a href="{% url 'finsovet:task_list' %}" class="btn secondary">Задачи</a>
+  <a href="{% url 'finsovet:structure' %}" class="btn ghost" title="Блоки">⚙️</a>
+  <span class="sp" style="flex:1"></span>
+  <small class="muted">{{ total }} вопрос{{ total|pluralize:"ов" }}</small>
 </div>
 
 <form method="get" class="stack" style="margin-bottom:var(--sp-3)" data-live-search>
@@ -26,34 +26,272 @@
          value="{{ q }}" autocomplete="off">
 </form>
 
-<div class="row filter-row" style="margin-bottom:var(--sp-3);flex-wrap:wrap">
-  <a href="?" class="chip {% if not block_slug %}active{% endif %}">Все блоки</a>
-  {% for b in blocks %}
-  <a href="?block={{ b.slug }}" class="chip {% if block_slug == b.slug %}active{% endif %}">{{ b.name }}</a>
-  {% endfor %}
-  <span class="sp" style="flex:1"></span>
-  <a href="?{% if block_slug %}block={{ block_slug }}&{% endif %}" class="chip {% if not status %}active{% endif %}">Любой статус</a>
-  {% for val, label in statuses %}
-  <a href="?{% if block_slug %}block={{ block_slug }}&{% endif %}status={{ val }}" class="chip status-{{ val }} {% if status == val %}active{% endif %}">{{ label }}</a>
-  {% endfor %}
+<div class="row filter-row" style="margin-bottom:var(--sp-3)">
+  <div class="hmenu filter-hmenu" data-hmenu>
+    <button type="button" class="hmenu-trigger {% if block_slug %}active{% endif %}">
+      {% if block_slug %}{% for b in blocks %}{% if b.slug == block_slug %}{{ b.name }}{% endif %}{% endfor %}{% else %}Все блоки{% endif %} ▾
+    </button>
+    <div class="hmenu-pop">
+      <a class="{% if not block_slug %}active{% endif %}" href="?{% if status %}status={{ status }}{% endif %}">Все блоки</a>
+      {% for b in blocks %}
+      <a class="{% if block_slug == b.slug %}active{% endif %}" href="?block={{ b.slug }}{% if status %}&status={{ status }}{% endif %}">
+        <span class="hmenu-dot" style="background:{{ b.color }}"></span>{{ b.name }}
+      </a>
+      {% endfor %}
+      <form method="post" action="{% url 'finsovet:block_quick_add' %}" class="hmenu-quick" onclick="event.stopPropagation()">
+        {% csrf_token %}
+        <input class="field-input sm" name="name" placeholder="+ новый блок…" autocomplete="off" required>
+      </form>
+    </div>
+  </div>
+
+  <div class="hmenu filter-hmenu" data-hmenu>
+    <button type="button" class="hmenu-trigger {% if status %}active{% endif %}">
+      {% if status %}{% for val, label in statuses %}{% if val == status %}{{ label }}{% endif %}{% endfor %}{% else %}Статус{% endif %} ▾
+    </button>
+    <div class="hmenu-pop">
+      <a class="{% if not status %}active{% endif %}" href="?{% if block_slug %}block={{ block_slug }}{% endif %}">Статус — любой</a>
+      {% for val, label in statuses %}
+      <a class="{% if status == val %}active{% endif %}" href="?{% if block_slug %}block={{ block_slug }}&{% endif %}status={{ val }}">{{ label }}</a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="hmenu filter-hmenu" data-hmenu>
+    <button type="button" class="hmenu-trigger">Ответственный ▾</button>
+    <div class="hmenu-pop">
+      {% for p in people %}
+      <a href="{% url 'finsovet:task_list' %}?responsible={{ p.id }}">{{ p.display_name }}</a>
+      {% endfor %}
+      <form method="post" action="{% url 'finsovet:responsible_quick_add' %}" class="hmenu-quick" onclick="event.stopPropagation()">
+        {% csrf_token %}
+        <input class="field-input sm" name="name" placeholder="+ новый ответственный…" autocomplete="off" required>
+      </form>
+    </div>
+  </div>
 </div>
 
-<div class="q-table">
-  <div class="q-row q-head">
-    <span class="q-block">Блок</span>
-    <span class="q-title">Вопрос</span>
-    <span class="q-status">Статус</span>
-    <span class="q-comment-wrap">Последний комментарий</span>
-    <span class="q-action">Действие</span>
-    <span class="q-due">Срок</span>
-    <span class="q-resp">Ответственный</span>
+<div class="fs-layout">
+  <div class="fs-main">
+    <div class="q-table" id="fsTable" data-reorder-url="{% url 'finsovet:question_reorder' %}">
+      <div class="q-row q-head">
+        <span></span>
+        <span class="q-block">Блок</span>
+        <span class="q-title">Вопрос</span>
+        <span class="q-status">Статус</span>
+        <span class="q-comment-wrap">Коммент</span>
+        <span class="q-action">Действие</span>
+        <span class="q-due">Срок</span>
+        <span class="q-resp">Ответственный</span>
+      </div>
+      {% for q in questions %}
+        {% include "finsovet/_question_row.html" %}
+      {% empty %}
+      <div class="empty"><div class="big">🗂️</div>
+        {% if q or block_slug or status %}Ничего не найдено{% else %}Пока пусто — добавьте вопрос строкой ниже{% endif %}
+      </div>
+      {% endfor %}
+      <form method="post" action="{% url 'finsovet:question_add' %}" class="q-addrow" id="fsAddRow">
+        {% csrf_token %}
+        <span class="q-addrow-ico">＋</span>
+        <select name="block" class="q-addrow-block" required>
+          <option value="" disabled selected>Блок…</option>
+          {% for b in blocks %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}
+        </select>
+        <input class="q-addrow-title" name="title" placeholder="Новый вопрос… (Enter — сохранить)" autocomplete="off">
+      </form>
+    </div>
   </div>
-  {% for q in questions %}
-    {% include "finsovet/_question_row.html" %}
-  {% empty %}
-  <div class="empty"><div class="big">🗂️</div>
-    {% if q or block_slug or status %}Ничего не найдено{% else %}Пока пусто — нажмите «＋ Добавить»{% endif %}
-  </div>
-  {% endfor %}
+
+  <aside class="fs-people">
+    <div class="fs-people-h">Ответственные</div>
+    {% for item in people_panel %}
+    <div class="filter-pop" data-popover>
+      <button type="button" class="fs-person" data-pop-trigger>
+        <span class="fs-person-avatar">{{ item.person.display_name|slice:':1'|upper }}</span>
+        <span class="fs-person-name">{{ item.person.display_name }}</span>
+        {% if item.tasks %}<span class="fs-person-count">{{ item.tasks|length }}</span>{% endif %}
+      </button>
+      <div class="pop-panel" data-pop-panel style="width:280px">
+        <div class="pop-h">{{ item.person.display_name }} — топ задач</div>
+        {% for t in item.tasks %}
+        <a href="{{ t.get_absolute_url }}" class="q-hist-item" style="display:block;text-decoration:none;color:inherit">
+          <div><b>{{ t.action }}</b></div>
+          <div class="muted" style="font-size:11px">{{ t.block.name }}{% if t.due_date %} · до {{ t.due_date|date:"d.m.Y" }}{% endif %}</div>
+        </a>
+        {% empty %}<div class="muted">Задач нет</div>{% endfor %}
+        <div class="pop-actions">
+          <button type="button" class="btn sm block" data-fs-add-task
+                  data-person-id="{{ item.person.id }}" data-person-name="{{ item.person.display_name }}">+ Новая задача</button>
+        </div>
+      </div>
+    </div>
+    {% empty %}<div class="muted" style="padding:8px">Список пуст</div>{% endfor %}
+  </aside>
 </div>
+
+<div class="modal-backdrop" id="fsTaskModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-h">
+      <b>Новая задача</b>
+      <button type="button" class="btn ghost sm" data-fs-modal-close aria-label="Закрыть">Готово</button>
+    </div>
+    <form class="modal-b stack" id="fsTaskModalForm" method="post" action="{% url 'finsovet:question_add' %}">
+      {% csrf_token %}
+      <div class="muted" data-fs-modal-person></div>
+      <input type="hidden" name="responsible" id="fsTaskResponsible">
+      <div class="form-row">
+        <label for="fsq_block">Блок</label>
+        <select class="field-input field-select" id="fsq_block" name="block" required>
+          <option value="" disabled selected>Выберите блок</option>
+          {% for b in blocks %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-row">
+        <label for="fsq_title">Вопрос</label>
+        <input class="field-input" id="fsq_title" name="title" required placeholder="Что за вопрос?" autocomplete="off">
+      </div>
+      <div class="form-row">
+        <label for="fsq_action">Действие</label>
+        <input class="field-input" id="fsq_action" name="action" placeholder="Например: Оплатить" autocomplete="off">
+      </div>
+      <div class="form-row">
+        <label for="fsq_due">Срок</label>
+        <input class="field-input" id="fsq_due" type="date" name="due_date">
+      </div>
+      <div class="errorlist" data-fs-modal-error hidden></div>
+      <button class="btn block lg" type="submit">Создать</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function(){
+  function csrf() {
+    const m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? m[1] : "";
+  }
+
+  // ---- «＋ Новая задача» из панели ответственных — модалка, как в CRM ----
+  var modal = document.getElementById('fsTaskModal');
+  if (modal) {
+    var form = document.getElementById('fsTaskModalForm');
+    var personEl = modal.querySelector('[data-fs-modal-person]');
+    var respInput = document.getElementById('fsTaskResponsible');
+    var errBox = modal.querySelector('[data-fs-modal-error]');
+    function openModal(btn) {
+      form.reset();
+      errBox.hidden = true;
+      respInput.value = btn.dataset.personId;
+      personEl.textContent = 'Ответственный: ' + btn.dataset.personName;
+      modal.hidden = false;
+      setTimeout(function () { document.getElementById('fsq_title').focus(); }, 30);
+    }
+    function closeModal() { modal.hidden = true; }
+    document.querySelectorAll('[data-fs-add-task]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) { e.stopPropagation(); openModal(btn); });
+    });
+    modal.querySelectorAll('[data-fs-modal-close]').forEach(function (b) { b.addEventListener('click', closeModal); });
+    modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !modal.hidden) closeModal(); });
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var btn = form.querySelector('button[type=submit]');
+      btn.disabled = true;
+      fetch(form.action, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': csrf() },
+        body: new FormData(form),
+      })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (res) {
+          btn.disabled = false;
+          if (!res.ok || !res.d.ok) { errBox.textContent = 'Проверьте поля: блок и вопрос обязательны.'; errBox.hidden = false; return; }
+          location.reload();
+        })
+        .catch(function () { btn.disabled = false; errBox.textContent = 'Не удалось создать.'; errBox.hidden = false; });
+    });
+  }
+
+  // ---- строка «добавить» внизу таблицы — без похода наверх ----
+  var addRow = document.getElementById('fsAddRow');
+  if (addRow) {
+    var titleInp = addRow.querySelector('.q-addrow-title');
+    titleInp.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      if (!addRow.querySelector('.q-addrow-block').value) { addRow.querySelector('.q-addrow-block').focus(); return; }
+      addRow.requestSubmit ? addRow.requestSubmit() : addRow.submit();
+    });
+  }
+
+  // ---- перетаскивание строк вверх-вниз: по одной и группой ----
+  var table = document.getElementById('fsTable');
+  if (table) {
+    var selected = new Set();
+    var rows = function () { return Array.from(table.querySelectorAll('.q-row[data-id]')); };
+
+    rows().forEach(function (row) {
+      // перетаскивать можно только за ручку — остальное остаётся кликабельным/редактируемым
+      var handle = row.querySelector('.q-drag');
+      if (handle) {
+        handle.addEventListener('mousedown', function () { row.draggable = true; });
+        document.addEventListener('mouseup', function () { row.draggable = false; });
+      }
+
+      row.addEventListener('click', function (e) {
+        if (e.target.closest('a,button,select,textarea,input,[contenteditable]')) return;
+        if (!e.ctrlKey && !e.metaKey && !e.shiftKey) return; // обычный клик — не трогаем выделение
+        e.preventDefault();
+        var id = row.dataset.id;
+        if (selected.has(id)) { selected.delete(id); row.classList.remove('row-selected'); }
+        else { selected.add(id); row.classList.add('row-selected'); }
+      });
+
+      row.addEventListener('dragstart', function (e) {
+        var id = row.dataset.id;
+        var ids = selected.has(id) && selected.size > 1 ? Array.from(selected) : [id];
+        e.dataTransfer.setData('text/plain', JSON.stringify(ids));
+        e.dataTransfer.effectAllowed = 'move';
+        row.classList.add('dragging');
+      });
+      row.addEventListener('dragend', function () {
+        row.classList.remove('dragging');
+        rows().forEach(function (r) { r.classList.remove('drag-over'); });
+      });
+      row.addEventListener('dragover', function (e) {
+        e.preventDefault();
+        row.classList.add('drag-over');
+      });
+      row.addEventListener('dragleave', function () { row.classList.remove('drag-over'); });
+      row.addEventListener('drop', function (e) {
+        e.preventDefault();
+        row.classList.remove('drag-over');
+        var raw = e.dataTransfer.getData('text/plain');
+        if (!raw) return;
+        var ids;
+        try { ids = JSON.parse(raw); } catch (err) { return; }
+        var targetId = row.dataset.id;
+        if (ids.includes(targetId)) return;
+
+        // переставляем в DOM сразу (перед целевой строкой) — визуально мгновенно
+        ids.forEach(function (id) {
+          var el = table.querySelector('.q-row[data-id="' + id + '"]');
+          if (el) row.parentNode.insertBefore(el, row);
+        });
+
+        var body = new URLSearchParams();
+        ids.forEach(function (id) { body.append('ids[]', id); });
+        body.set('target_id', targetId);
+        fetch(table.dataset.reorderUrl, {
+          method: 'POST',
+          headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': csrf(), 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: body.toString(),
+        });
+      });
+    });
+  }
+})();
+</script>
 {% endblock %}

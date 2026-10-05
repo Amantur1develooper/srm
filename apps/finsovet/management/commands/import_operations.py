@@ -93,10 +93,16 @@ class Command(BaseCommand):
             u, created = User.objects.get_or_create(
                 username=username, defaults={"first_name": name, "role": "manager", "is_active": True}
             )
+            changed = []
             if created:
                 u.set_unusable_password()
-                u.save(update_fields=["password"])
+                changed.append("password")
                 self.stdout.write(f"создан пользователь для атрибуции: {name} ({username})")
+            if not u.is_finsovet_responsible:
+                u.is_finsovet_responsible = True
+                changed.append("is_finsovet_responsible")
+            if changed:
+                u.save(update_fields=changed)
             people[name.lower()] = u
         return people
 
@@ -109,11 +115,16 @@ class Command(BaseCommand):
                 return user
         return None
 
+    EXTRA_COLORS = {"Спецрежим": "#7c3aed"}
+
     def _get_block(self, name, cache):
         name = name.strip()
         if name in cache:
             return cache[name]
-        block, _ = Block.objects.get_or_create(name=name, defaults={"slug": self._slug(name), "order": 99})
+        block, _ = Block.objects.get_or_create(
+            name=name,
+            defaults={"slug": self._slug(name), "order": 99, "color": self.EXTRA_COLORS.get(name, "#8e8e93")},
+        )
         cache[name] = block
         return block
 

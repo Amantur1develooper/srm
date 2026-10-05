@@ -25,6 +25,7 @@ class User(AbstractUser):
     phone = models.CharField("Телефон", max_length=32, blank=True)
     is_active_manager = models.BooleanField("Активен как менеджер", default=True)
     can_access_finsovet = models.BooleanField("Доступ к Финсовету", default=False)
+    is_finsovet_responsible = models.BooleanField("Ответственный в Финсовете", default=False)
 
     class Meta:
         verbose_name = "Пользователь"

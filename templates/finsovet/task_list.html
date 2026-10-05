@@ -1,5 +1,6 @@
 {% extends "crm/base.html" %}
 {% block title %}Задачи — Финсовет{% endblock %}
+{% block body_class %}fs-notopbar{% endblock %}
 {% block content %}
 <div class="page-head">
   <div><a href="{% url 'finsovet:dashboard' %}" class="muted">← Финсовет</a><h1 style="margin-top:4px">Задачи</h1><small>Вопросы, где заполнено «Действие»</small></div>
@@ -14,10 +15,11 @@
 
 <div class="q-table">
   <div class="q-row q-head">
+    <span></span>
     <span class="q-block">Блок</span>
     <span class="q-title">Задача</span>
     <span class="q-status">Статус</span>
-    <span class="q-comment-wrap">Последний комментарий</span>
+    <span class="q-comment-wrap">Коммент</span>
     <span class="q-action">Действие</span>
     <span class="q-due">Срок</span>
     <span class="q-resp">Ответственный</span>

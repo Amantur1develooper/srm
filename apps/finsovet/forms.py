@@ -33,13 +33,15 @@ class CommentForm(BootstrapMixin, forms.Form):
 class BlockForm(BootstrapMixin, forms.ModelForm):
     class Meta:
         model = Block
-        fields = ["name", "slug", "order"]
+        fields = ["name", "slug", "order", "color"]
+        widgets = {"color": forms.TextInput(attrs={"type": "color"})}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["slug"].required = False
         self.fields["slug"].help_text = "Можно оставить пустым — заполнится само"
         self.fields["order"].required = False
+        self.fields["color"].required = False
 
     def save(self, commit=True):
         obj = super().save(commit=False)
@@ -52,3 +54,27 @@ class BlockForm(BootstrapMixin, forms.ModelForm):
         if commit:
             obj.save()
         return obj
+
+
+class BlockQuickForm(BootstrapMixin, forms.ModelForm):
+    """«+ добавить блок» в один клик из выпадающего списка — только название."""
+
+    class Meta:
+        model = Block
+        fields = ["name"]
+
+    def save(self, commit=True):
+        import uuid
+
+        obj = super().save(commit=False)
+        obj.slug = f"block-{uuid.uuid4().hex[:8]}"
+        obj.order = 99
+        if commit:
+            obj.save()
+        return obj
+
+
+class ResponsibleQuickForm(BootstrapMixin, forms.Form):
+    """«+ добавить ответственного» — заводит нового человека одним именем."""
+
+    name = forms.CharField(label="Имя", max_length=80)

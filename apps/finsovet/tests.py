@@ -10,7 +10,9 @@ class FinsovetCoreTests(TestCase):
     def setUp(self):
         self.block = Block.objects.create(name="К Блок", slug="k-blok", order=0)
         self.admin = User.objects.create_user("boss", password="x", role="admin")
-        self.member = User.objects.create_user("marat", password="x", role="manager", can_access_finsovet=True)
+        self.member = User.objects.create_user(
+            "marat", password="x", role="manager", can_access_finsovet=True, is_finsovet_responsible=True,
+        )
         self.outsider = User.objects.create_user("nobody", password="x", role="manager")
         self.question = Question.objects.create(block=self.block, title="Лифты", created_by=self.admin)
 
@@ -94,3 +96,52 @@ class FinsovetCoreTests(TestCase):
         resp2 = self.client.get("/finsovet/", {"status": "in_progress"})
         self.assertContains(resp2, "Электричество")
         self.assertNotContains(resp2, "Лифты")
+
+    def test_reorder_single_and_group(self):
+        self.client.login(username="boss", password="x")
+        q2 = Question.objects.create(block=self.block, title="Второй", order=1)
+        q3 = Question.objects.create(block=self.block, title="Третий", order=2)
+        self.question.order = 0
+        self.question.save(update_fields=["order"])
+        # перетаскиваем «Второй» и «Третий» группой и бросаем перед «Лифты»
+        resp = self.client.post(
+            "/finsovet/question/reorder/", {"ids[]": [q2.id, q3.id], "target_id": self.question.id},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(resp.status_code, 200)
+        ordered = list(Question.objects.filter(block=self.block).order_by("order").values_list("title", flat=True))
+        self.assertEqual(ordered, ["Второй", "Третий", "Лифты"])
+
+        # перетаскиваем «Лифты» (теперь последний) в начало — одной строкой, без target_id
+        resp2 = self.client.post(
+            "/finsovet/question/reorder/", {"ids[]": [self.question.id]},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(resp2.status_code, 200)
+        ordered2 = list(Question.objects.filter(block=self.block).order_by("order").values_list("title", flat=True))
+        self.assertEqual(ordered2, ["Лифты", "Второй", "Третий"])
+
+    def test_block_and_responsible_quick_add(self):
+        self.client.login(username="boss", password="x")
+        resp = self.client.post(
+            "/finsovet/block/add/", {"name": "Паркинг"}, HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json()["ok"])
+        self.assertTrue(Block.objects.filter(name="Паркинг").exists())
+
+        resp2 = self.client.post(
+            "/finsovet/responsible/add/", {"name": "Новый Человек"}, HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(resp2.status_code, 200)
+        self.assertTrue(resp2.json()["ok"])
+        new_person = User.objects.get(first_name="Новый Человек")
+        self.assertTrue(new_person.is_finsovet_responsible)
+        from .access import responsible_people
+        self.assertIn(new_person, responsible_people())
+
+    def test_block_color_and_text_color(self):
+        orange = Block.objects.create(name="К Блок 2", slug="k-blok-2", color="#f97316")
+        beige = Block.objects.create(name="Ала Тоо 2", slug="ala-too-2", color="#e8dcc8")
+        self.assertEqual(orange.text_color, "#fff")
+        self.assertEqual(beige.text_color, "#1c1c1e")  # светлый фон -> тёмный текст

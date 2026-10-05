@@ -758,26 +758,42 @@ body.selecting .titem{cursor:default}
 /* =========================================================
    ФИНСОВЕТ — таблица вопросов (Excel/CRM-подобный плоский список)
    ========================================================= */
-.chip.status-soon{--chip-c:#8e8e93}
-.chip.status-in_progress{--chip-c:#b45309}
+body.fs-notopbar .topbar{display:none}
+
+.fs-layout{display:grid;grid-template-columns:65% 35%;gap:var(--sp-5);align-items:start}
+@media(max-width:1100px){.fs-layout{grid-template-columns:1fr}}
+.fs-main{min-width:0}
+.fs-toolbar{display:flex;align-items:center;gap:var(--sp-2);margin-bottom:var(--sp-3);flex-wrap:wrap}
+.chip.status-soon{--chip-c:#eab308;color:#1c1c1e}
+.chip.status-in_progress{--chip-c:#2563eb}
 .chip.status-done{--chip-c:#1b8a4c}
-.chip.status-frozen{--chip-c:#5856d6}
-.chip.status-soon.active,.chip.status-in_progress.active,.chip.status-done.active,.chip.status-frozen.active{
+.chip.status-frozen{--chip-c:#8e8e93}
+.chip.status-in_progress.active,.chip.status-done.active,.chip.status-frozen.active{
   background:var(--chip-c);color:#fff;
 }
+.chip.status-soon.active{background:var(--chip-c);color:#1c1c1e}
 
 .q-table{background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);overflow:hidden;overflow-x:auto}
 .q-row{
-  display:grid;align-items:center;gap:10px;padding:8px var(--sp-4);border-top:.5px solid var(--sep);
-  grid-template-columns:100px 1fr 132px 200px 160px 128px 128px;min-width:920px;
+  display:grid;align-items:center;gap:8px;padding:7px var(--sp-3);border-top:.5px solid var(--sep);
+  grid-template-columns:22px 1fr 1fr 1fr 2.2fr 1.3fr 1fr 1fr;min-width:760px;
 }
 .q-row:first-child{border-top:0}
 .q-row:not(.q-head):hover{background:var(--fill-quat)}
+.q-row.drag-over{box-shadow:inset 0 2px 0 var(--blue)}
+.q-row.dragging{opacity:.4}
+.q-row.row-selected{background:var(--blue-tint)}
 .q-head{
-  background:var(--sidebar-bg);font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
-  color:var(--muted);position:sticky;top:calc(var(--header-h));z-index:5;padding-top:10px;padding-bottom:10px;
+  background:var(--sidebar-bg);font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--muted);position:sticky;top:0;z-index:5;padding-top:10px;padding-bottom:10px;
 }
-.q-block{font-size:12.5px;color:var(--muted);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.q-drag{cursor:grab;color:var(--muted-2);font-size:13px;text-align:center;user-select:none}
+.q-drag:active{cursor:grabbing}
+
+.q-block-badge{
+  display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:var(--r-pill);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;
+}
 .q-title{font-weight:600;font-size:13.5px;color:var(--text);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .q-title:hover{color:var(--blue);text-decoration:none;opacity:1}
 
@@ -785,10 +801,10 @@ body.selecting .titem{cursor:default}
   border:0;border-radius:var(--r-pill);padding:4px 10px;font-size:11.5px;font-weight:600;cursor:pointer;
   font-family:inherit;color:#fff;width:100%;-webkit-appearance:none;appearance:none;text-align:center;
 }
-.q-status-sel.status-soon{background:#8e8e93}
-.q-status-sel.status-in_progress{background:#b45309}
+.q-status-sel.status-soon{background:#eab308;color:#1c1c1e}
+.q-status-sel.status-in_progress{background:#2563eb}
 .q-status-sel.status-done{background:#1b8a4c}
-.q-status-sel.status-frozen{background:#5856d6}
+.q-status-sel.status-frozen{background:#8e8e93}
 
 .q-comment-wrap .filter-pop{display:flex;width:100%}
 .q-comment-btn{
@@ -820,7 +836,37 @@ body.selecting .titem{cursor:default}
 .q-resp:hover{background:var(--fill-quat)}
 
 @media(max-width:900px){
-  .q-row{grid-template-columns:90px 180px 110px 170px 140px 110px 110px}
+  .q-row{grid-template-columns:20px 90px 140px 90px 170px 130px 90px 90px}
 }
 .q-hist-item{padding:6px 0;border-top:.5px solid var(--sep);font-size:12.5px}
 .q-hist-item:first-child{border-top:0}
+
+/* строка «+ добавить» внизу таблицы — ввод без похода наверх */
+.q-addrow{display:flex;align-items:center;gap:8px;padding:9px var(--sp-4);border-top:.5px solid var(--sep)}
+.q-addrow-ico{color:var(--muted-2);font-size:14px;flex:0 0 auto}
+.q-addrow-block{border:0;background:var(--fill);border-radius:6px;padding:5px 8px;font:inherit;font-size:12.5px;color:var(--muted);flex:0 0 150px}
+.q-addrow-title{flex:1;border:0;background:none;font:inherit;font-size:13px;padding:5px 2px;color:var(--text)}
+.q-addrow-title:focus{outline:none}
+.q-addrow-title::placeholder{color:var(--muted-2)}
+
+/* точка-цвет блока в выпадающем списке фильтра */
+.hmenu-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:middle}
+
+/* «+ добавить блок/ответственного» — мини-форма внизу выпадающего списка */
+.hmenu-quick{border-top:.5px solid var(--sep);margin-top:4px;padding-top:6px}
+.hmenu-quick .field-input.sm{font-size:12.5px;padding:6px 9px}
+
+/* правая колонка: ответственные + топ задач по наведению */
+.fs-people{background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:8px}
+.fs-people-h{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);padding:6px 8px 8px}
+.fs-person{
+  width:100%;display:flex;align-items:center;gap:10px;padding:9px 8px;border:0;background:none;
+  border-radius:var(--r);cursor:pointer;font:inherit;text-align:left;
+}
+.fs-person:hover{background:var(--fill-quat)}
+.fs-person-avatar{
+  width:30px;height:30px;border-radius:50%;background:var(--blue-tint);color:var(--blue);
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:0 0 auto;
+}
+.fs-person-name{flex:1;font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fs-person-count{background:var(--fill);border-radius:20px;padding:1px 7px;font-size:11px;color:var(--muted);font-weight:600}

@@ -19,6 +19,7 @@ class Block(models.Model):
     name = models.CharField("Название", max_length=100)
     slug = models.SlugField("Slug", max_length=100, unique=True)
     order = models.PositiveSmallIntegerField("Порядок", default=0)
+    color = models.CharField("Цвет", max_length=7, default="#8e8e93", help_text="HEX, например #1b8a4c")
     is_active = models.BooleanField("Активен", default=True)
 
     class Meta:
@@ -28,6 +29,16 @@ class Block(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+    @property
+    def text_color(self) -> str:
+        """Чёрный текст на светлом фоне (бежевый, жёлтый), белый — на тёмном."""
+        hex_c = (self.color or "#8e8e93").lstrip("#")
+        if len(hex_c) != 6:
+            return "#fff"
+        r, g, b = (int(hex_c[i:i + 2], 16) for i in (0, 2, 4))
+        luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+        return "#1c1c1e" if luminance > 0.6 else "#fff"
 
 
 class Question(models.Model):
@@ -40,6 +51,7 @@ class Question(models.Model):
         FROZEN = "frozen", "Заморожен"
 
     block = models.ForeignKey(Block, on_delete=models.PROTECT, related_name="questions", verbose_name="Блок")
+    order = models.IntegerField("Порядок", default=0)
     title = models.CharField("Вопрос", max_length=300)
     status = models.CharField("Статус", max_length=16, choices=Status.choices, default=Status.SOON)
     action = models.CharField("Действие", max_length=200, blank=True, default="")
@@ -56,7 +68,7 @@ class Question(models.Model):
     is_active = models.BooleanField("Активен", default=True)
 
     class Meta:
-        ordering = ["block__order", "-updated_at"]
+        ordering = ["order", "-updated_at"]
         verbose_name = "Вопрос"
         verbose_name_plural = "Вопросы"
         indexes = [models.Index(fields=["block", "status"])]

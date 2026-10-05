@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import re
+
 from django.contrib import messages as flash
+from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -9,15 +12,20 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .access import finsovet_required, responsible_people
-from .forms import BlockForm, CommentForm, QuestionQuickForm
+from .forms import BlockForm, BlockQuickForm, CommentForm, QuestionQuickForm, ResponsibleQuickForm
 from .models import Block, Entry, Question
 from .utils import log_change, log_entry
 
+User = get_user_model()
 STATUS_LABELS = dict(Question.Status.choices)
 
 
 def _back(request, fallback):
     return request.META.get("HTTP_REFERER") or fallback
+
+
+def _is_xhr(request):
+    return request.headers.get("x-requested-with") == "XMLHttpRequest"
 
 
 def _base_ctx():
@@ -41,6 +49,15 @@ def dashboard(request):
     if status:
         qs = qs.filter(status=status)
 
+    people_panel = []
+    for p in responsible_people():
+        top = (
+            Question.objects.filter(is_active=True, responsible=p)
+            .exclude(action="").exclude(status=Question.Status.DONE)
+            .select_related("block").order_by("due_date")[:3]
+        )
+        people_panel.append({"person": p, "tasks": list(top)})
+
     ctx = {
         **_base_ctx(),
         "questions": qs,
@@ -48,7 +65,10 @@ def dashboard(request):
         "block_slug": block_slug,
         "status": status,
         "quick_form": QuestionQuickForm(),
+        "block_quick_form": BlockQuickForm(),
+        "responsible_quick_form": ResponsibleQuickForm(),
         "total": Question.objects.filter(is_active=True).count(),
+        "people_panel": people_panel,
     }
     return render(request, "finsovet/dashboard.html", ctx)
 
@@ -61,9 +81,15 @@ def question_add(request):
     if form.is_valid():
         question = form.save(commit=False)
         question.created_by = request.user
+        top = Question.objects.order_by("-order").values_list("order", flat=True).first() or 0
+        question.order = top + 1
         question.save()
+        if _is_xhr(request):
+            return JsonResponse({"ok": True, "id": question.id, "title": question.title})
         flash.success(request, f"Добавлено: {question.title}")
         return redirect(_back(request, reverse("finsovet:dashboard")))
+    if _is_xhr(request):
+        return JsonResponse({"ok": False, "errors": form.errors}, status=400)
     flash.error(request, "Проверьте поля — блок и вопрос обязательны")
     return redirect(_back(request, reverse("finsovet:dashboard")))
 
@@ -169,10 +195,40 @@ def question_comment_add(request, pk):
     if form.is_valid():
         log_entry(question, Entry.Kind.COMMENT, form.cleaned_data["text"], request.user)
         question.save(update_fields=["updated_at"])
+        if _is_xhr(request):
+            return JsonResponse({"ok": True})
         flash.success(request, "Комментарий добавлен")
     else:
+        if _is_xhr(request):
+            return JsonResponse({"ok": False, "errors": form.errors}, status=400)
         flash.error(request, "Проверьте текст комментария")
     return redirect(_back(request, question.get_absolute_url()))
+
+
+@finsovet_required
+@require_POST
+def question_reorder(request):
+    """Перетаскивание строк — по одной и группой, как в Excel. Перетащенные id
+    (в своём относительном порядке) вставляются перед строкой target_id;
+    без target_id — в начало общего списка."""
+    ids = [int(i) for i in request.POST.getlist("ids[]") if str(i).isdigit()]
+    target_raw = request.POST.get("target_id", "")
+    target_id = int(target_raw) if target_raw.isdigit() else None
+    if not ids:
+        return JsonResponse({"ok": False, "error": "Нечего переставлять"}, status=400)
+    all_ids = list(Question.objects.filter(is_active=True).order_by("order", "-updated_at").values_list("id", flat=True))
+    moving = [i for i in ids if i in all_ids]
+    if not moving:
+        return JsonResponse({"ok": False, "error": "Вопросы не найдены"}, status=400)
+    remaining = [i for i in all_ids if i not in moving]
+    if target_id is not None and target_id in remaining:
+        insert_at = remaining.index(target_id)
+    else:
+        insert_at = 0
+    new_order = remaining[:insert_at] + moving + remaining[insert_at:]
+    for idx, qid in enumerate(new_order):
+        Question.objects.filter(pk=qid).update(order=idx)
+    return JsonResponse({"ok": True})
 
 
 @finsovet_required
@@ -203,6 +259,64 @@ def today_view(request):
     )
     ctx = {**_base_ctx(), "entries": entries, "today": today}
     return render(request, "finsovet/today.html", ctx)
+
+
+@finsovet_required
+@require_POST
+def block_quick_add(request):
+    """«+ добавить блок» в один клик из выпадающего списка «Все блоки»."""
+    form = BlockQuickForm(request.POST)
+    if form.is_valid():
+        block = form.save()
+        if _is_xhr(request):
+            return JsonResponse({"ok": True, "id": block.id, "name": block.name, "slug": block.slug, "color": block.color})
+        flash.success(request, f"Блок «{block.name}» добавлен")
+    else:
+        if _is_xhr(request):
+            return JsonResponse({"ok": False, "errors": form.errors}, status=400)
+        flash.error(request, "Укажите название блока")
+    return redirect(_back(request, reverse("finsovet:dashboard")))
+
+
+@finsovet_required
+@require_POST
+def responsible_quick_add(request):
+    """«+ добавить ответственного» — заводит нового человека по одному имени."""
+    form = ResponsibleQuickForm(request.POST)
+    if form.is_valid():
+        name = form.cleaned_data["name"].strip()
+        base = re.sub(r"[^a-zA-Z0-9]", "", _translit(name)).lower() or "person"
+        username = base
+        n = 1
+        while User.objects.filter(username=username).exists():
+            n += 1
+            username = f"{base}{n}"
+        user = User.objects.create(
+            username=username, first_name=name, role="manager", is_active=True, is_finsovet_responsible=True,
+        )
+        user.set_unusable_password()
+        user.save(update_fields=["password"])
+        if _is_xhr(request):
+            return JsonResponse({"ok": True, "id": user.id, "name": name})
+        flash.success(request, f"«{name}» добавлен в ответственные")
+    else:
+        if _is_xhr(request):
+            return JsonResponse({"ok": False, "errors": form.errors}, status=400)
+        flash.error(request, "Укажите имя")
+    return redirect(_back(request, reverse("finsovet:dashboard")))
+
+
+_TRANSLIT = {
+    "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "e", "ж": "zh", "з": "z",
+    "и": "i", "й": "i", "к": "k", "л": "l", "м": "m", "н": "n", "о": "o", "п": "p", "р": "r",
+    "с": "s", "т": "t", "у": "u", "ф": "f", "х": "h", "ц": "ts", "ч": "ch", "ш": "sh", "щ": "sch",
+    "ъ": "", "ы": "y", "ь": "", "э": "e", "ю": "yu", "я": "ya",
+    "ң": "ng", "ө": "o", "ү": "u",
+}
+
+
+def _translit(text: str) -> str:
+    return "".join(_TRANSLIT.get(ch, ch) for ch in text.lower())
 
 
 @finsovet_required

@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="{% static 'crm/app.css' %}?v={{ asset_version }}">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='24' fill='%234f46e5'/></svg>">
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
 <div class="app">
   <div class="scrim"></div>
   <aside class="sidebar">
