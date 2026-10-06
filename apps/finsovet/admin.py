@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Block, Entry, Question
+from .models import Block, DebtNote, Entry, Question
 
 
 @admin.register(Block)
@@ -20,4 +20,10 @@ class QuestionAdmin(admin.ModelAdmin):
 class EntryAdmin(admin.ModelAdmin):
     list_display = ("question", "kind", "author", "created_at")
     list_filter = ("kind",)
+    search_fields = ("text",)
+
+
+@admin.register(DebtNote)
+class DebtNoteAdmin(admin.ModelAdmin):
+    list_display = ("__str__", "created_by", "updated_by", "updated_at")
     search_fields = ("text",)

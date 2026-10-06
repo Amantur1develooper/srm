@@ -1224,6 +1224,8 @@ def global_search(request):
 
 @login_required
 def notifications(request):
+    if not request.user.is_admin_role:
+        return redirect("dashboard")
     qs = Notification.objects.filter(user=request.user)
     return render(request, "crm/notifications.html", {"items": qs[:100]})
 

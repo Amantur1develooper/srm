@@ -90,12 +90,17 @@ class FinsovetCoreTests(TestCase):
         self.client.login(username="boss", password="x")
         other_block = Block.objects.create(name="ЖЗИ", slug="zhzi", order=1)
         Question.objects.create(block=other_block, title="Электричество", status=Question.Status.IN_PROGRESS)
+        def table(resp):
+            # фильтр касается таблицы; боковые панели («Блоки», «Ответственные») показывают всё
+            html = resp.content.decode()
+            return html[html.index('id="fsTable"'):html.index('class="fs-side"')]
+
         resp = self.client.get("/finsovet/", {"block": "k-blok"})
-        self.assertContains(resp, "Лифты")
-        self.assertNotContains(resp, "Электричество")
+        self.assertIn("Лифты", table(resp))
+        self.assertNotIn("Электричество", table(resp))
         resp2 = self.client.get("/finsovet/", {"status": "in_progress"})
-        self.assertContains(resp2, "Электричество")
-        self.assertNotContains(resp2, "Лифты")
+        self.assertIn("Электричество", table(resp2))
+        self.assertNotIn("Лифты", table(resp2))
 
     def test_reorder_single_and_group(self):
         self.client.login(username="boss", password="x")

@@ -1,5 +1,5 @@
 {% comment %}Строка вопроса: блок / вопрос / статус / коммент / действие / срок / ответственный.
-Всё редактируется на месте: клик → изменить → сохранить. Перетаскивается за ручку слева
+Всё редактируется на месте: клик → изменить → сохранить. 🗑 в конце строки — удалить. Перетаскивается за ручку слева
 (Ctrl/⌘/Shift+клик по строке — выделить несколько, и тащить группой).{% endcomment %}
 <div class="q-row" data-id="{{ q.id }}">
   <span class="q-drag" title="Перетащить">⠿</span>
@@ -38,6 +38,13 @@
           <div class="pop-actions"><button class="btn sm block" type="submit">Коммент</button></div>
         </form>
         <div class="pop-actions"><a href="{{ q.get_absolute_url }}" class="btn ghost sm block">Вся история</a></div>
+        <div class="pop-actions">
+          <form method="post" action="{% url 'finsovet:question_delete' q.id %}" class="block"
+                onsubmit="return confirm('Удалить «{{ q.title|escapejs }}»?')">
+            {% csrf_token %}
+            <button type="submit" class="btn sm danger block">🗑 Удалить вопрос</button>
+          </form>
+        </div>
       </div>
     </div>
   </span>
@@ -55,4 +62,10 @@
     <option value="">—</option>
     {% for p in people %}<option value="{{ p.id }}" {% if p.id == q.responsible_id %}selected{% endif %}>{{ p.display_name }}</option>{% endfor %}
   </select>
+
+  <form method="post" action="{% url 'finsovet:question_delete' q.id %}" class="q-del-form"
+        onsubmit="return confirm('Удалить строку «{{ q.title|escapejs }}»?')">
+    {% csrf_token %}
+    <button type="submit" class="q-del" title="Удалить строку" aria-label="Удалить строку">🗑</button>
+  </form>
 </div>

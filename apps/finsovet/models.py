@@ -134,3 +134,31 @@ class Entry(models.Model):
 
     def __str__(self) -> str:
         return f"{self.question} — {self.text[:40]}"
+
+
+class DebtNote(models.Model):
+    """Заметка по текущим долгам — доска в духе Apple Notes / Google Keep:
+    любой с доступом к Финсовету может добавить, отредактировать или убрать
+    любую карточку (совместная работа, без персонального владения)."""
+
+    COLORS = ["#fff8c5", "#d8f0d3", "#d6e9fb", "#ffe1d1", "#ead6fb", "#f0f0f0"]
+
+    text = models.TextField("Текст", blank=True, default="")
+    color = models.CharField("Цвет", max_length=7, default=COLORS[0])
+    order = models.IntegerField("Порядок", default=0)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["order", "-updated_at"]
+        verbose_name = "Заметка о долге"
+        verbose_name_plural = "Заметки о долгах"
+
+    def __str__(self) -> str:
+        return self.text[:60] or f"Заметка #{self.pk}"

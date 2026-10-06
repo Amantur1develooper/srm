@@ -464,15 +464,17 @@
 
   // ---- редактирование поля на месте где угодно: [data-inline-edit] со своим data-url и data-field ----
   document.querySelectorAll("[data-inline-edit]").forEach(function (el) {
-    let before = el.textContent;
     const multiline = el.dataset.multiline === "1";
-    el.addEventListener("focus", function () { before = el.textContent; });
+    // многострочное поле (заметки): innerText сохраняет переносы строк
+    const read = function () { return multiline ? el.innerText : el.textContent; };
+    let before = read();
+    el.addEventListener("focus", function () { before = read(); });
     el.addEventListener("keydown", function (e) {
       if (e.key === "Enter" && !multiline) { e.preventDefault(); el.blur(); }
       if (e.key === "Escape") { el.textContent = before; el.blur(); }
     });
     el.addEventListener("blur", function () {
-      const val = el.textContent.trim();
+      const val = read().trim();
       if (val === before.trim()) return;
       el.classList.add("saving");
       fetch(el.dataset.url, {

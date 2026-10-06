@@ -1,0 +1,54 @@
+{% extends "crm/base.html" %}
+{% block title %}Долги — Финсовет{% endblock %}
+{% block body_class %}fs-notopbar{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><a href="{% url 'finsovet:dashboard' %}" class="muted">← Финсовет</a><h1 style="margin-top:4px">Долги</h1><small>Общая доска — правит любой, как в Apple Notes / Google Keep</small></div>
+  <div class="actions"><button type="button" class="btn" id="debtAddBtn">＋ Заметка</button></div>
+</div>
+
+<form method="post" action="{% url 'finsovet:debt_add' %}" id="debtAddForm" hidden>{% csrf_token %}</form>
+
+<div class="debt-board" id="debtBoard">
+  {% for n in notes %}
+  <div class="debt-card" style="background:{{ n.color }}" data-id="{{ n.id }}">
+    <div class="debt-text kf" contenteditable="true" data-inline-edit
+         data-url="{% url 'finsovet:debt_update' n.id %}" data-field="text" data-multiline="1"
+         data-placeholder="Напишите, кто кому должен…">{{ n.text }}</div>
+    <div class="debt-foot">
+      <small>{{ n.updated_by.display_name|default:n.created_by.display_name|default:"—" }} · {{ n.updated_at|date:"d.m H:i" }}</small>
+      <button type="button" class="debt-del" data-debt-delete="{% url 'finsovet:debt_delete' n.id %}" title="Удалить" aria-label="Удалить">✕</button>
+    </div>
+  </div>
+  {% empty %}
+  <div class="empty"><div class="big">🗒️</div>Пока нет заметок — нажмите «＋ Заметка»</div>
+  {% endfor %}
+</div>
+
+<script>
+(function () {
+  function csrf() {
+    const m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? m[1] : "";
+  }
+  var addBtn = document.getElementById('debtAddBtn');
+  var addForm = document.getElementById('debtAddForm');
+  if (addBtn) addBtn.addEventListener('click', function () {
+    fetch(addForm.action, {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': csrf() },
+    }).then(function () { location.reload(); });
+  });
+
+  document.querySelectorAll('[data-debt-delete]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (!confirm('Убрать эту заметку?')) return;
+      fetch(btn.dataset.debtDelete, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': csrf() },
+      }).then(function () { btn.closest('.debt-card').remove(); });
+    });
+  });
+})();
+</script>
+{% endblock %}

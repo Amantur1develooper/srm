@@ -33,8 +33,9 @@ def crm_globals(request):
         "asset_version": _asset_version(),
         "nav_tasks_today": today_cnt,
         "nav_tasks_overdue": overdue,
-        "nav_notifications": Notification.objects.filter(user=user, is_read=False).count(),
-        "nav_recent_notifications": Notification.objects.filter(user=user)[:8],
+        # уведомления видит только администратор — менеджерам они скрыты
+        "nav_notifications": Notification.objects.filter(user=user, is_read=False).count() if user.is_admin_role else 0,
+        "nav_recent_notifications": Notification.objects.filter(user=user)[:8] if user.is_admin_role else [],
         "nav_prepared_messages": (
             Message.objects.filter(status=Message.Status.PREPARED)
             if user.can_see_all_clients

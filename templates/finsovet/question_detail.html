@@ -12,6 +12,13 @@
     </h1>
     <small class="muted">{{ question.block.name }}</small>
   </div>
+  <div class="actions">
+    <form method="post" action="{% url 'finsovet:question_delete' question.id %}"
+          onsubmit="return confirm('Удалить «{{ question.title|escapejs }}»?')">
+      {% csrf_token %}
+      <button type="submit" class="btn secondary danger">🗑 Удалить</button>
+    </form>
+  </div>
 </div>
 
 <div class="detail-grid">

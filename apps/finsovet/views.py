@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import random
 import re
 
 from django.contrib import messages as flash
 from django.contrib.auth import get_user_model
-from django.db.models import Q
+from django.db.models import F, Q
 from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -13,7 +14,7 @@ from django.views.decorators.http import require_POST
 
 from .access import finsovet_required, responsible_people
 from .forms import BlockForm, BlockQuickForm, CommentForm, QuestionQuickForm, ResponsibleQuickForm
-from .models import Block, Entry, Question
+from .models import Block, DebtNote, Entry, Question
 from .utils import log_change, log_entry
 
 User = get_user_model()
@@ -49,14 +50,23 @@ def dashboard(request):
     if status:
         qs = qs.filter(status=status)
 
+    # «Блоки» и «Ответственные» — одинаковые по виду панели: строка (точка, имя,
+    # счётчик) и под ней топ-3 открытых задачи.
     people_panel = []
     for p in responsible_people():
-        top = (
+        open_qs = (
             Question.objects.filter(is_active=True, responsible=p)
             .exclude(action="").exclude(status=Question.Status.DONE)
-            .select_related("block").order_by("due_date")[:3]
         )
-        people_panel.append({"person": p, "tasks": list(top)})
+        top = open_qs.select_related("block").order_by(F("due_date").asc(nulls_last=True), "order")[:3]
+        overdue = open_qs.filter(due_date__lt=timezone.localdate()).count()
+        people_panel.append({"person": p, "count": open_qs.count(), "overdue": overdue, "tasks": list(top)})
+
+    blocks_panel = []
+    for b in Block.objects.filter(is_active=True):
+        block_qs = Question.objects.filter(is_active=True, block=b)
+        top = block_qs.exclude(status=Question.Status.DONE).order_by("order", "-updated_at")[:3]
+        blocks_panel.append({"block": b, "count": block_qs.count(), "tasks": list(top)})
 
     ctx = {
         **_base_ctx(),
@@ -69,6 +79,8 @@ def dashboard(request):
         "responsible_quick_form": ResponsibleQuickForm(),
         "total": Question.objects.filter(is_active=True).count(),
         "people_panel": people_panel,
+        "blocks_panel": blocks_panel,
+        "debt_notes": DebtNote.objects.select_related("updated_by", "created_by"),
     }
     return render(request, "finsovet/dashboard.html", ctx)
 
@@ -207,6 +219,20 @@ def question_comment_add(request, pk):
 
 @finsovet_required
 @require_POST
+def question_delete(request, pk):
+    """Удалить строку. Вопрос не стирается физически (история остаётся в базе),
+    а просто перестаёт показываться — можно восстановить через админку."""
+    question = get_object_or_404(Question, pk=pk)
+    question.is_active = False
+    question.save(update_fields=["is_active"])
+    if _is_xhr(request):
+        return JsonResponse({"ok": True})
+    flash.success(request, f"«{question.title}» удалён")
+    return redirect(_back(request, reverse("finsovet:dashboard")))
+
+
+@finsovet_required
+@require_POST
 def question_reorder(request):
     """Перетаскивание строк — по одной и группой, как в Excel. Перетащенные id
     (в своём относительном порядке) вставляются перед строкой target_id;
@@ -331,3 +357,53 @@ def structure(request):
         flash.error(request, "Проверьте поля")
     ctx = {"all_blocks": Block.objects.all(), "block_form": BlockForm()}
     return render(request, "finsovet/structure.html", ctx)
+
+
+# --------------------------------------------------------------------------- #
+#  Долги — совместная доска заметок (принцип Apple Notes / Google Keep):
+#  любой с доступом к Финсовету видит и правит все карточки.
+# --------------------------------------------------------------------------- #
+@finsovet_required
+def debts_view(request):
+    ctx = {**_base_ctx(), "notes": DebtNote.objects.all()}
+    return render(request, "finsovet/debts.html", ctx)
+
+
+@finsovet_required
+@require_POST
+def debt_add(request):
+    top = DebtNote.objects.order_by("-order").values_list("order", flat=True).first() or 0
+    note = DebtNote.objects.create(
+        text=request.POST.get("text", "").strip(),
+        color=random.choice(DebtNote.COLORS),
+        order=top + 1,
+        created_by=request.user,
+        updated_by=request.user,
+    )
+    if _is_xhr(request):
+        return JsonResponse({"ok": True, "id": note.id})
+    return redirect(_back(request, reverse("finsovet:debts")))
+
+
+@finsovet_required
+@require_POST
+def debt_update(request, pk):
+    note = get_object_or_404(DebtNote, pk=pk)
+    field = request.POST.get("field", "")
+    value = request.POST.get("value", "")
+    if field not in {"text", "color"}:
+        return HttpResponseBadRequest("bad field")
+    setattr(note, field, value.strip() if field == "text" else value)
+    note.updated_by = request.user
+    note.save(update_fields=[field, "updated_by", "updated_at"])
+    return JsonResponse({"ok": True})
+
+
+@finsovet_required
+@require_POST
+def debt_delete(request, pk):
+    note = get_object_or_404(DebtNote, pk=pk)
+    note.delete()
+    if _is_xhr(request):
+        return JsonResponse({"ok": True})
+    return redirect(_back(request, reverse("finsovet:debts")))

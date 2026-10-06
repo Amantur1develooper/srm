@@ -16,6 +16,7 @@
   </div>
   <a href="{% url 'finsovet:today' %}" class="btn secondary">Сегодня</a>
   <a href="{% url 'finsovet:task_list' %}" class="btn secondary">Задачи</a>
+  <a href="{% url 'finsovet:debts' %}" class="btn secondary">Долги</a>
   <a href="{% url 'finsovet:structure' %}" class="btn ghost" title="Блоки">⚙️</a>
   <span class="sp" style="flex:1"></span>
   <small class="muted">{{ total }} вопрос{{ total|pluralize:"ов" }}</small>
@@ -83,6 +84,7 @@
         <span class="q-action">Действие</span>
         <span class="q-due">Срок</span>
         <span class="q-resp">Ответственный</span>
+        <span></span>
       </div>
       {% for q in questions %}
         {% include "finsovet/_question_row.html" %}
@@ -103,30 +105,66 @@
     </div>
   </div>
 
-  <aside class="fs-people">
-    <div class="fs-people-h">Ответственные</div>
-    {% for item in people_panel %}
-    <div class="filter-pop" data-popover>
-      <button type="button" class="fs-person" data-pop-trigger>
-        <span class="fs-person-avatar">{{ item.person.display_name|slice:':1'|upper }}</span>
-        <span class="fs-person-name">{{ item.person.display_name }}</span>
-        {% if item.tasks %}<span class="fs-person-count">{{ item.tasks|length }}</span>{% endif %}
-      </button>
-      <div class="pop-panel" data-pop-panel style="width:280px">
-        <div class="pop-h">{{ item.person.display_name }} — топ задач</div>
-        {% for t in item.tasks %}
-        <a href="{{ t.get_absolute_url }}" class="q-hist-item" style="display:block;text-decoration:none;color:inherit">
-          <div><b>{{ t.action }}</b></div>
-          <div class="muted" style="font-size:11px">{{ t.block.name }}{% if t.due_date %} · до {{ t.due_date|date:"d.m.Y" }}{% endif %}</div>
+  <aside class="fs-side">
+    <div class="fs-panel">
+      <div class="fs-panel-h">Блоки</div>
+      {% for item in blocks_panel %}
+      <div class="fs-panel-row fs-panel-row-tasks">
+        <a href="?block={{ item.block.slug }}" class="fs-panel-row-head">
+          <span class="fs-dot" style="background:{{ item.block.color }}"></span>
+          <span class="fs-panel-name">{{ item.block.name }}</span>
+          <span class="fs-panel-count">{{ item.count }}</span>
         </a>
-        {% empty %}<div class="muted">Задач нет</div>{% endfor %}
-        <div class="pop-actions">
-          <button type="button" class="btn sm block" data-fs-add-task
-                  data-person-id="{{ item.person.id }}" data-person-name="{{ item.person.display_name }}">+ Новая задача</button>
-        </div>
+        {% for t in item.tasks %}
+        <a href="{{ t.get_absolute_url }}" class="fs-mini-task">
+          <span class="fs-mini-dot {{ t.due_tone }}"></span>{{ t.title|truncatechars:30 }}{% if t.due_date %} · {{ t.due_date|date:"d.m" }}{% endif %}
+        </a>
+        {% empty %}<div class="fs-mini-empty">Вопросов нет</div>{% endfor %}
       </div>
+      {% empty %}<div class="muted" style="padding:8px">Список пуст</div>{% endfor %}
     </div>
-    {% empty %}<div class="muted" style="padding:8px">Список пуст</div>{% endfor %}
+
+    <div class="fs-panel">
+      <div class="fs-panel-h">Ответственные</div>
+      {% for item in people_panel %}
+      <div class="fs-panel-row fs-panel-row-tasks">
+        <a href="{% url 'finsovet:task_list' %}?responsible={{ item.person.id }}" class="fs-panel-row-head">
+          <span class="fs-dot fs-dot-person"></span>
+          <span class="fs-panel-name">{{ item.person.display_name }}</span>
+          {% if item.overdue %}<span class="fs-panel-count fs-panel-count-red" title="Просрочено">{{ item.overdue }}</span>{% endif %}
+          <span class="fs-panel-count" title="Открытых задач">{{ item.count }}</span>
+        </a>
+        {% for t in item.tasks %}
+        <a href="{{ t.get_absolute_url }}" class="fs-mini-task">
+          <span class="fs-mini-dot {{ t.due_tone }}"></span>{{ t.action|truncatechars:30 }}{% if t.due_date %} · {{ t.due_date|date:"d.m" }}{% endif %}
+        </a>
+        {% empty %}<div class="fs-mini-empty">Задач нет</div>{% endfor %}
+        <button type="button" class="fs-mini-add" data-fs-add-task
+                data-person-id="{{ item.person.id }}" data-person-name="{{ item.person.display_name }}">+ задача</button>
+      </div>
+      {% empty %}<div class="muted" style="padding:8px">Список пуст</div>{% endfor %}
+    </div>
+
+    <div class="fs-panel">
+      <div class="fs-panel-h fs-panel-h-row">
+        <span>Текущие долги</span>
+        <a href="{% url 'finsovet:debts' %}" class="fs-panel-h-link">Доска →</a>
+      </div>
+      <div class="debt-mini-list" id="debtMiniList">
+        {% for n in debt_notes %}
+        <div class="debt-card debt-card-mini" style="background:{{ n.color }}">
+          <div class="debt-text kf" contenteditable="true" data-inline-edit
+               data-url="{% url 'finsovet:debt_update' n.id %}" data-field="text" data-multiline="1"
+               data-placeholder="Кто кому должен, сумма, срок…">{{ n.text }}</div>
+          <div class="debt-foot">
+            <small>{{ n.updated_by.display_name|default:n.created_by.display_name|default:"—" }} · {{ n.updated_at|date:"d.m H:i" }}</small>
+            <button type="button" class="debt-del" data-debt-delete="{% url 'finsovet:debt_delete' n.id %}" title="Удалить" aria-label="Удалить">✕</button>
+          </div>
+        </div>
+        {% empty %}<div class="fs-mini-empty" style="padding:4px 8px">Долгов нет</div>{% endfor %}
+      </div>
+      <button type="button" class="fs-mini-add" style="padding:6px 8px 4px" data-debt-add="{% url 'finsovet:debt_add' %}">+ заметка</button>
+    </div>
   </aside>
 </div>
 
@@ -213,6 +251,26 @@
         .catch(function () { btn.disabled = false; errBox.textContent = 'Не удалось создать.'; errBox.hidden = false; });
     });
   }
+
+  // ---- «Текущие долги»: общая доска заметок прямо в Финсовете ----
+  var debtAdd = document.querySelector('[data-debt-add]');
+  if (debtAdd) debtAdd.addEventListener('click', function () {
+    debtAdd.disabled = true;
+    fetch(debtAdd.dataset.debtAdd, {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': csrf() },
+    }).then(function () { location.reload(); })
+      .catch(function () { debtAdd.disabled = false; });
+  });
+  document.querySelectorAll('#debtMiniList [data-debt-delete]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (!confirm('Убрать эту заметку?')) return;
+      fetch(btn.dataset.debtDelete, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': csrf() },
+      }).then(function (r) { if (r.ok) btn.closest('.debt-card').remove(); });
+    });
+  });
 
   // ---- строка «добавить» внизу таблицы — без похода наверх ----
   var addRow = document.getElementById('fsAddRow');

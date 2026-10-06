@@ -32,6 +32,7 @@ STAGES = [
 FUNNELS = [
     ("el-nasip", "Эл Насип", 10),
     ("standart-house", "Standart House", 20),
+    ("zhzi", "ЖЗИ", 30),
 ]
 
 TEMPLATES = [

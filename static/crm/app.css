@@ -776,7 +776,8 @@ body.fs-notopbar .topbar{display:none}
 .q-table{background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);overflow:hidden;overflow-x:auto}
 .q-row{
   display:grid;align-items:center;gap:8px;padding:7px var(--sp-3);border-top:.5px solid var(--sep);
-  grid-template-columns:22px 1fr 1fr 1fr 2.2fr 1.3fr 1fr 1fr;min-width:760px;
+  grid-template-columns:22px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,2.2fr) minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr) 26px;
+  min-width:790px;
 }
 .q-row:first-child{border-top:0}
 .q-row:not(.q-head):hover{background:var(--fill-quat)}
@@ -818,8 +819,26 @@ body.fs-notopbar .topbar{display:none}
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 .q-action:hover{background:var(--fill-quat)}
-.q-action:focus{background:var(--surface);box-shadow:0 0 0 2px var(--blue);outline:none;white-space:normal;overflow:visible}
+.q-action:focus{background:var(--surface);box-shadow:0 0 0 2px var(--blue);outline:none}
 .q-action:empty::before{content:attr(data-placeholder);color:var(--muted-2)}
+
+/* ширина ячеек зафиксирована всегда, в т.ч. в режиме редактирования —
+   колонки minmax(0,…) не зависят от содержимого, текст не растягивает строку,
+   лишнее просто скрыто (как в Excel) */
+.q-row,.q-row *{box-sizing:border-box}
+.q-row>*{min-width:0;max-width:100%}
+.q-title,.q-action,.q-block-badge,.q-comment-btn{max-width:100%}
+.q-action:focus{text-overflow:clip}
+
+/* удалить строку — корзина в конце, видна при наведении */
+.q-del-form{display:flex;justify-content:center}
+.q-del{
+  background:none;border:0;padding:2px 4px;border-radius:5px;cursor:pointer;font-size:13px;line-height:1;
+  color:var(--muted-2);opacity:0;transition:opacity .15s;
+}
+.q-row:hover .q-del,.q-del:focus-visible{opacity:1}
+.q-del:hover{background:rgba(255,59,48,.12);color:var(--red)}
+@media(hover:none){.q-del{opacity:.6}}
 
 .q-due{
   border:0;background:transparent;font:inherit;font-size:12px;font-weight:600;color:var(--muted);
@@ -836,7 +855,7 @@ body.fs-notopbar .topbar{display:none}
 .q-resp:hover{background:var(--fill-quat)}
 
 @media(max-width:900px){
-  .q-row{grid-template-columns:20px 90px 140px 90px 170px 130px 90px 90px}
+  .q-row{grid-template-columns:20px 90px 140px 90px 170px 130px 90px 90px 26px}
 }
 .q-hist-item{padding:6px 0;border-top:.5px solid var(--sep);font-size:12.5px}
 .q-hist-item:first-child{border-top:0}
@@ -856,17 +875,66 @@ body.fs-notopbar .topbar{display:none}
 .hmenu-quick{border-top:.5px solid var(--sep);margin-top:4px;padding-top:6px}
 .hmenu-quick .field-input.sm{font-size:12.5px;padding:6px 9px}
 
-/* правая колонка: ответственные + топ задач по наведению */
-.fs-people{background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:8px}
-.fs-people-h{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);padding:6px 8px 8px}
-.fs-person{
-  width:100%;display:flex;align-items:center;gap:10px;padding:9px 8px;border:0;background:none;
+/* правая колонка: два визуально симметричных блока — «Блоки» и «Ответственные» */
+.fs-side{display:flex;flex-direction:column;gap:var(--sp-4)}
+.fs-panel{background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:8px}
+.fs-panel-h{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);padding:6px 8px 8px}
+.fs-panel-row{
+  width:100%;display:flex;align-items:center;gap:10px;padding:8px 8px;border:0;background:none;
   border-radius:var(--r);cursor:pointer;font:inherit;text-align:left;
 }
-.fs-person:hover{background:var(--fill-quat)}
-.fs-person-avatar{
-  width:30px;height:30px;border-radius:50%;background:var(--blue-tint);color:var(--blue);
-  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:0 0 auto;
+button.fs-panel-row:hover{background:var(--fill-quat)}
+.fs-dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
+.fs-panel-name{flex:1;font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fs-panel-count{background:var(--fill);border-radius:20px;padding:1px 7px;font-size:11px;color:var(--muted);font-weight:600;flex:0 0 auto}
+
+/* «Ответственные» — топ-3 задачи всегда видны под именем, без наведения */
+.fs-panel-row-tasks{display:block;cursor:default;padding:8px 8px}
+.fs-panel-row-head{display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none;border-radius:6px}
+a.fs-panel-row-head:hover{text-decoration:none;opacity:1}
+a.fs-panel-row-head:hover .fs-panel-name{color:var(--blue)}
+.fs-dot-person{background:var(--blue)}
+.fs-panel-count-red{background:rgba(255,59,48,.14);color:var(--red-d)}
+.fs-panel-h-row{display:flex;align-items:center;justify-content:space-between}
+.fs-panel-h-link{font-size:11px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--blue)}
+
+/* «Текущие долги» в боковой панели — компактные карточки как в Google Keep */
+.debt-mini-list{display:flex;flex-direction:column;gap:8px;padding:0 4px}
+.debt-card-mini{margin:0;padding:10px 12px;gap:6px;box-shadow:none;border:.5px solid rgba(0,0,0,.06)}
+.debt-card-mini .debt-text{font-size:13px;min-height:20px}
+.fs-mini-task{
+  display:block;font-size:12px;color:var(--muted);padding:3px 0 3px 18px;text-decoration:none;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:relative;
 }
-.fs-person-name{flex:1;font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fs-person-count{background:var(--fill);border-radius:20px;padding:1px 7px;font-size:11px;color:var(--muted);font-weight:600}
+.fs-mini-task:hover{color:var(--blue);text-decoration:none;opacity:1}
+.fs-mini-dot{width:6px;height:6px;border-radius:50%;background:var(--muted-2);position:absolute;left:4px;top:8px}
+.fs-mini-dot.amber{background:var(--orange)}
+.fs-mini-dot.red{background:var(--red)}
+.fs-mini-empty{font-size:12px;color:var(--muted-2);padding:3px 0 3px 18px}
+.fs-mini-add{
+  background:none;border:0;padding:3px 0 0 18px;font:inherit;font-size:12px;font-weight:600;
+  color:var(--blue);cursor:pointer;font-family:inherit;
+}
+.fs-mini-add:hover{opacity:.7}
+
+/* ---- Долги: совместная доска заметок (Apple Notes / Google Keep) ---- */
+.debt-board{columns:4 220px;column-gap:var(--sp-4)}
+@media(max-width:900px){.debt-board{columns:2 180px}}
+@media(max-width:560px){.debt-board{columns:1}}
+.debt-card{
+  break-inside:avoid;margin-bottom:var(--sp-4);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);
+  padding:14px;display:flex;flex-direction:column;gap:10px;
+}
+.debt-text{
+  font-size:14px;line-height:1.5;color:#1c1c1e;min-height:40px;white-space:pre-wrap;word-break:break-word;
+  cursor:text;border-radius:6px;
+}
+.debt-text:empty::before{content:attr(data-placeholder);color:rgba(28,28,30,.4)}
+.debt-text:focus{outline:none;box-shadow:0 0 0 2px rgba(0,0,0,.15)}
+.debt-foot{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.debt-foot small{color:rgba(28,28,30,.55);font-size:11px}
+.debt-del{
+  background:none;border:0;color:rgba(28,28,30,.4);cursor:pointer;font-size:13px;padding:2px 4px;
+  border-radius:4px;flex:0 0 auto;
+}
+.debt-del:hover{background:rgba(0,0,0,.08);color:rgba(28,28,30,.8)}
