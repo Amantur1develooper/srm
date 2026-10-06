@@ -760,7 +760,8 @@ body.selecting .titem{cursor:default}
    ========================================================= */
 body.fs-notopbar .topbar{display:none}
 
-.fs-layout{display:grid;grid-template-columns:65% 35%;gap:var(--sp-5);align-items:start}
+/* главная рабочая область — таблица вопросов; справа узкая колонка ответственных и долгов */
+.fs-layout{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:var(--sp-5);align-items:start}
 @media(max-width:1100px){.fs-layout{grid-template-columns:1fr}}
 .fs-main{min-width:0}
 .fs-toolbar{display:flex;align-items:center;gap:var(--sp-2);margin-bottom:var(--sp-3);flex-wrap:wrap}
@@ -875,7 +876,7 @@ body.fs-notopbar .topbar{display:none}
 .hmenu-quick{border-top:.5px solid var(--sep);margin-top:4px;padding-top:6px}
 .hmenu-quick .field-input.sm{font-size:12.5px;padding:6px 9px}
 
-/* правая колонка: два визуально симметричных блока — «Блоки» и «Ответственные» */
+/* правая колонка: «Ответственные» и «Текущие долги» */
 .fs-side{display:flex;flex-direction:column;gap:var(--sp-4)}
 .fs-panel{background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:8px}
 .fs-panel-h{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);padding:6px 8px 8px}

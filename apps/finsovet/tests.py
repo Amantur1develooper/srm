@@ -91,7 +91,7 @@ class FinsovetCoreTests(TestCase):
         other_block = Block.objects.create(name="ЖЗИ", slug="zhzi", order=1)
         Question.objects.create(block=other_block, title="Электричество", status=Question.Status.IN_PROGRESS)
         def table(resp):
-            # фильтр касается таблицы; боковые панели («Блоки», «Ответственные») показывают всё
+            # фильтр касается таблицы; боковые панели показывают всё
             html = resp.content.decode()
             return html[html.index('id="fsTable"'):html.index('class="fs-side"')]
 

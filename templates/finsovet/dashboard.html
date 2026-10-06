@@ -107,24 +107,6 @@
 
   <aside class="fs-side">
     <div class="fs-panel">
-      <div class="fs-panel-h">Блоки</div>
-      {% for item in blocks_panel %}
-      <div class="fs-panel-row fs-panel-row-tasks">
-        <a href="?block={{ item.block.slug }}" class="fs-panel-row-head">
-          <span class="fs-dot" style="background:{{ item.block.color }}"></span>
-          <span class="fs-panel-name">{{ item.block.name }}</span>
-          <span class="fs-panel-count">{{ item.count }}</span>
-        </a>
-        {% for t in item.tasks %}
-        <a href="{{ t.get_absolute_url }}" class="fs-mini-task">
-          <span class="fs-mini-dot {{ t.due_tone }}"></span>{{ t.title|truncatechars:30 }}{% if t.due_date %} · {{ t.due_date|date:"d.m" }}{% endif %}
-        </a>
-        {% empty %}<div class="fs-mini-empty">Вопросов нет</div>{% endfor %}
-      </div>
-      {% empty %}<div class="muted" style="padding:8px">Список пуст</div>{% endfor %}
-    </div>
-
-    <div class="fs-panel">
       <div class="fs-panel-h">Ответственные</div>
       {% for item in people_panel %}
       <div class="fs-panel-row fs-panel-row-tasks">

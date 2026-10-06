@@ -50,8 +50,7 @@ def dashboard(request):
     if status:
         qs = qs.filter(status=status)
 
-    # «Блоки» и «Ответственные» — одинаковые по виду панели: строка (точка, имя,
-    # счётчик) и под ней топ-3 открытых задачи.
+    # «Ответственные»: строка (имя, счётчик) и под ней топ-3 открытых задачи.
     people_panel = []
     for p in responsible_people():
         open_qs = (
@@ -61,12 +60,6 @@ def dashboard(request):
         top = open_qs.select_related("block").order_by(F("due_date").asc(nulls_last=True), "order")[:3]
         overdue = open_qs.filter(due_date__lt=timezone.localdate()).count()
         people_panel.append({"person": p, "count": open_qs.count(), "overdue": overdue, "tasks": list(top)})
-
-    blocks_panel = []
-    for b in Block.objects.filter(is_active=True):
-        block_qs = Question.objects.filter(is_active=True, block=b)
-        top = block_qs.exclude(status=Question.Status.DONE).order_by("order", "-updated_at")[:3]
-        blocks_panel.append({"block": b, "count": block_qs.count(), "tasks": list(top)})
 
     ctx = {
         **_base_ctx(),
@@ -79,7 +72,6 @@ def dashboard(request):
         "responsible_quick_form": ResponsibleQuickForm(),
         "total": Question.objects.filter(is_active=True).count(),
         "people_panel": people_panel,
-        "blocks_panel": blocks_panel,
         "debt_notes": DebtNote.objects.select_related("updated_by", "created_by"),
     }
     return render(request, "finsovet/dashboard.html", ctx)
