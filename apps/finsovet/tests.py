@@ -3,7 +3,7 @@ from django.utils import timezone
 
 from apps.crm.models import User
 
-from .models import Block, Entry, Question
+from .models import Block, Entry, ExpectedFund, Payment, Question
 
 
 class FinsovetCoreTests(TestCase):
@@ -150,3 +150,72 @@ class FinsovetCoreTests(TestCase):
         beige = Block.objects.create(name="Ала Тоо 2", slug="ala-too-2", color="#e8dcc8")
         self.assertEqual(orange.text_color, "#fff")
         self.assertEqual(beige.text_color, "#1c1c1e")  # светлый фон -> тёмный текст
+
+
+class FinancePanelTests(TestCase):
+    """Панель «Финансы»: план выплат + ожидаемые средства, правка как в Excel."""
+
+    def setUp(self):
+        self.admin = User.objects.create_user("boss", password="x", role="admin")
+        self.outsider = User.objects.create_user("nobody", password="x", role="manager")
+        self.client.login(username="boss", password="x")
+
+    def _add_payment(self):
+        resp = self.client.post("/finsovet/payments/add/")
+        self.assertEqual(resp.status_code, 200)
+        return Payment.objects.get(pk=resp.json()["id"])
+
+    def test_dashboard_shows_panels(self):
+        resp = self.client.get("/finsovet/")
+        for label in ("Финансы", "План выплат", "Ожидаемые средства", "Управление"):
+            self.assertContains(resp, label)
+
+    def test_excel_like_edit_and_remaining(self):
+        p = self._add_payment()
+        url = f"/finsovet/payments/{p.pk}/update/"
+        self.client.post(url, {"field": "name", "value": "Строй партнер и Ко Тимур"})
+        d = self.client.post(url, {"field": "total", "value": "1 845 000,00"}).json()
+        self.assertEqual(d["remaining"], "1 845 000,00")
+        # «Оплачено» вписано прямо в ячейку → разница становится выплатой с датой
+        d = self.client.post(url, {"field": "paid", "value": "500 000"}).json()
+        self.assertEqual(d["paid"], "500 000,00")
+        self.assertEqual(d["remaining"], "1 345 000,00")
+        self.assertFalse(d["done"])
+        self.assertEqual(p.records.count(), 1)
+        bad = self.client.post(url, {"field": "total", "value": "много"})
+        self.assertEqual(bad.status_code, 400)
+
+    def test_add_and_delete_record_marks_done(self):
+        p = self._add_payment()
+        self.client.post(f"/finsovet/payments/{p.pk}/update/", {"field": "total", "value": "139000"})
+        d = self.client.post(f"/finsovet/payments/{p.pk}/records/add/", {"amount": "139 000", "date": "2026-10-01"}).json()
+        self.assertTrue(d["done"])  # полностью оплачено → строка зачёркнута
+        hist = self.client.get(f"/finsovet/payments/{p.pk}/history/").json()
+        self.assertEqual(hist["records"][0]["date"], "01.10.2026")
+        d = self.client.post(hist["records"][0]["delete_url"]).json()
+        self.assertFalse(d["done"])
+        self.assertEqual(d["remaining"], "139 000,00")
+
+    def test_delete_row_hides_it_but_keeps_history(self):
+        p = self._add_payment()
+        self.client.post(f"/finsovet/payments/{p.pk}/records/add/", {"amount": "10"})
+        self.client.post(f"/finsovet/payments/{p.pk}/delete/")
+        p.refresh_from_db()
+        self.assertFalse(p.is_active)
+        self.assertEqual(p.records.count(), 1)
+
+    def test_expected_funds_crud(self):
+        resp = self.client.post("/finsovet/funds/add/").json()
+        url = f"/finsovet/funds/{resp['id']}/update/"
+        self.client.post(url, {"field": "source", "value": "Продажа квартир"})
+        self.assertEqual(self.client.post(url, {"field": "amount", "value": "2500000"}).json()["amount"], "2 500 000,00")
+        f = ExpectedFund.objects.get(pk=resp["id"])
+        self.assertEqual(f.source, "Продажа квартир")
+        self.client.post(f"/finsovet/funds/{f.pk}/delete/")
+        f.refresh_from_db()
+        self.assertFalse(f.is_active)
+
+    def test_outsider_cannot_touch_finance(self):
+        self.client.login(username="nobody", password="x")
+        self.assertEqual(self.client.post("/finsovet/payments/add/").status_code, 403)
+        self.assertEqual(self.client.post("/finsovet/funds/add/").status_code, 403)

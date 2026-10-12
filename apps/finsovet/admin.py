@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Block, DebtNote, Entry, Question
+from .models import Block, DebtNote, Entry, ExpectedFund, Payment, PaymentRecord, Question
 
 
 @admin.register(Block)
@@ -27,3 +27,23 @@ class EntryAdmin(admin.ModelAdmin):
 class DebtNoteAdmin(admin.ModelAdmin):
     list_display = ("__str__", "created_by", "updated_by", "updated_at")
     search_fields = ("text",)
+
+
+class PaymentRecordInline(admin.TabularInline):
+    model = PaymentRecord
+    extra = 0
+
+
+@admin.register(Payment)
+class PaymentAdmin(admin.ModelAdmin):
+    list_display = ("name", "due", "total", "is_active", "updated_at")
+    list_filter = ("is_active",)
+    search_fields = ("name", "notes")
+    inlines = [PaymentRecordInline]
+
+
+@admin.register(ExpectedFund)
+class ExpectedFundAdmin(admin.ModelAdmin):
+    list_display = ("source", "amount", "due", "is_active", "updated_at")
+    list_filter = ("is_active",)
+    search_fields = ("source", "notes")

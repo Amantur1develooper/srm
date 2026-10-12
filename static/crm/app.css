@@ -939,3 +939,74 @@ a.fs-panel-row-head:hover .fs-panel-name{color:var(--blue)}
   border-radius:4px;flex:0 0 auto;
 }
 .debt-del:hover{background:rgba(0,0,0,.08);color:rgba(28,28,30,.8)}
+
+/* =========================================================
+   Финсовет → панель «Финансы» (сверху) и «Управление» (ниже)
+   ========================================================= */
+.fs-section-h{
+  font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);
+  margin:0 0 var(--sp-2);padding-left:2px;
+}
+.fin-panel{margin-bottom:var(--sp-5)}
+.fin-grid{display:grid;grid-template-columns:minmax(0,65fr) minmax(0,35fr);gap:var(--sp-4);align-items:start}
+@media(max-width:1100px){.fin-grid{grid-template-columns:minmax(0,1fr)}}
+.fin-box{background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:8px 8px 6px;min-width:0}
+.fin-box-h{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 6px 8px;
+  font-size:13.5px;font-weight:700;
+}
+.fin-more-btn{background:none;border:0;font:inherit;font-size:12px;font-weight:600;color:var(--blue);cursor:pointer;padding:0}
+.fin-more-btn:hover{opacity:.7}
+.fin-add{padding:6px 6px 2px}
+
+/* таблица «как в Excel»: фиксированные колонки, сетка, ячейка = поле ввода */
+.xl-wrap{overflow-x:auto}
+.xl-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px}
+.xl-payments{min-width:820px}
+.xl-funds{min-width:420px}
+.xl-table th{
+  background:var(--sidebar-bg);color:var(--muted);font-size:10.5px;font-weight:700;letter-spacing:.03em;
+  text-transform:uppercase;text-align:left;padding:7px 6px;border:.5px solid var(--sep);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.xl-table th.r{text-align:right}
+.xl-table td{border:.5px solid var(--sep);padding:0;height:30px;overflow:hidden}
+.xl-num{text-align:center;color:var(--muted-2);font-size:11.5px}
+.xl-calc{text-align:right;padding:0 7px!important;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+.xl-cell{
+  width:100%;height:30px;border:0;background:transparent;font:inherit;color:var(--text);padding:0 7px;
+  outline:none;text-overflow:ellipsis;min-width:0;
+}
+.xl-cell::placeholder{color:var(--muted-2)}
+.xl-cell:hover{background:var(--fill-quat)}
+.xl-cell:focus{background:var(--surface);box-shadow:inset 0 0 0 2px var(--blue)}
+.xl-cell.xl-money{text-align:right;font-variant-numeric:tabular-nums}
+.xl-cell.saving{opacity:.5}
+.xl-cell.saved{background:rgba(52,199,89,.14)}
+.xl-cell.xl-err{box-shadow:inset 0 0 0 2px var(--red)}
+.xl-act{text-align:center;white-space:nowrap}
+.xl-btn{background:none;border:0;padding:2px 3px;border-radius:5px;cursor:pointer;font-size:12.5px;line-height:1;opacity:.55}
+.xl-btn:hover{opacity:1;background:var(--fill-quat)}
+.xl-btn.xl-del:hover{background:rgba(255,59,48,.12)}
+
+/* завершённая оплата — зачёркнута, но остаётся доступной (история по 🕘) */
+.xl-row.is-done .xl-cell,.xl-row.is-done .xl-calc{text-decoration:line-through;color:var(--muted)}
+.xl-row.is-done .xl-num{color:var(--green, #34c759)}
+
+/* модалка истории выплат */
+.fh-sums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.fh-sums>div{background:var(--fill-quat);border-radius:var(--r);padding:8px 10px;display:flex;flex-direction:column;gap:2px}
+.fh-sums small{color:var(--muted);font-size:11px}
+.fh-sums b{font-variant-numeric:tabular-nums}
+.fh-form{display:grid;grid-template-columns:1.2fr 1fr 1.4fr auto;gap:6px;align-items:center}
+@media(max-width:560px){.fh-form{grid-template-columns:1fr 1fr}}
+.fh-list{display:flex;flex-direction:column;max-height:300px;overflow:auto}
+.fh-item{
+  display:grid;grid-template-columns:84px 120px minmax(0,1fr) 26px;gap:8px;align-items:center;
+  padding:7px 0;border-top:.5px solid var(--sep);font-size:13px;
+}
+.fh-item:first-child{border-top:0}
+.fh-date{color:var(--muted);font-variant-numeric:tabular-nums}
+.fh-amount{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+.fh-note{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#finHistoryModal .modal{max-width:580px}

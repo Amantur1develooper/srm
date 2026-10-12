@@ -162,3 +162,94 @@ class DebtNote(models.Model):
 
     def __str__(self) -> str:
         return self.text[:60] or f"Заметка #{self.pk}"
+
+
+# --------------------------------------------------------------------------- #
+#  Панель «Финансы»: план выплат (65%) и ожидаемые средства (35%).
+#  Таблицы правятся как в Excel — каждая ячейка сохраняется сама.
+# --------------------------------------------------------------------------- #
+class Payment(models.Model):
+    """Строка «плана выплат»: кому и сколько нужно заплатить. «Оплачено» не хранится,
+    а складывается из выплат (PaymentRecord) — так у каждой строки есть история."""
+
+    order = models.IntegerField("Порядок", default=0)
+    due = models.CharField("Дата выплаты / срок", max_length=100, blank=True, default="")
+    name = models.CharField("Наименование", max_length=300, blank=True, default="")
+    total = models.DecimalField("Общая сумма долга", max_digits=14, decimal_places=2, default=0)
+    extra = models.CharField("Дополнительно", max_length=300, blank=True, default="")
+    notes = models.CharField("Примечание", max_length=500, blank=True, default="")
+    is_active = models.BooleanField("Активна", default=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["order", "id"]
+        verbose_name = "Выплата (план)"
+        verbose_name_plural = "План выплат"
+
+    def __str__(self) -> str:
+        return self.name or f"Выплата #{self.pk}"
+
+    @property
+    def paid(self):
+        # используем аннотацию из вьюхи, если она есть — без лишнего запроса на строку
+        if hasattr(self, "paid_sum"):
+            return self.paid_sum or 0
+        return self.records.aggregate(s=models.Sum("amount"))["s"] or 0
+
+    @property
+    def remaining(self):
+        return self.total - self.paid
+
+    @property
+    def is_done(self) -> bool:
+        """Завершена — долг есть и выплачен полностью (показывается зачёркнутой)."""
+        return self.total > 0 and self.remaining <= 0
+
+
+class PaymentRecord(models.Model):
+    """Одна фактическая выплата по строке плана — из них строится история с датами."""
+
+    payment = models.ForeignKey(Payment, on_delete=models.CASCADE, related_name="records", verbose_name="Строка плана")
+    amount = models.DecimalField("Сумма", max_digits=14, decimal_places=2)
+    date = models.DateField("Дата выплаты")
+    note = models.CharField("Комментарий", max_length=300, blank=True, default="")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-date", "-created_at"]
+        verbose_name = "Выплата"
+        verbose_name_plural = "Выплаты"
+
+    def __str__(self) -> str:
+        return f"{self.payment} — {self.amount} ({self.date:%d.%m.%Y})"
+
+
+class ExpectedFund(models.Model):
+    """Строка «ожидаемых средств»: откуда и когда придут деньги."""
+
+    order = models.IntegerField("Порядок", default=0)
+    source = models.CharField("Источник", max_length=300, blank=True, default="")
+    amount = models.DecimalField("Сумма", max_digits=14, decimal_places=2, default=0)
+    due = models.CharField("Срок", max_length=100, blank=True, default="")
+    notes = models.CharField("Примечание", max_length=500, blank=True, default="")
+    is_active = models.BooleanField("Активна", default=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["order", "id"]
+        verbose_name = "Ожидаемые средства"
+        verbose_name_plural = "Ожидаемые средства"
+
+    def __str__(self) -> str:
+        return self.source or f"Поступление #{self.pk}"

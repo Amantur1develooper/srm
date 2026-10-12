@@ -2,19 +2,22 @@ from __future__ import annotations
 
 import random
 import re
+from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages as flash
 from django.contrib.auth import get_user_model
-from django.db.models import F, Q
+from django.db.models import F, Q, Sum
 from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .access import finsovet_required, responsible_people
 from .forms import BlockForm, BlockQuickForm, CommentForm, QuestionQuickForm, ResponsibleQuickForm
-from .models import Block, DebtNote, Entry, Question
+from .models import Block, DebtNote, Entry, ExpectedFund, Payment, PaymentRecord, Question
+from .templatetags.finsovet_tags import format_money
 from .utils import log_change, log_entry
 
 User = get_user_model()
@@ -73,6 +76,9 @@ def dashboard(request):
         "total": Question.objects.filter(is_active=True).count(),
         "people_panel": people_panel,
         "debt_notes": DebtNote.objects.select_related("updated_by", "created_by"),
+        "payments": _payments_qs(),
+        "funds": ExpectedFund.objects.filter(is_active=True),
+        "fin_visible": FIN_VISIBLE_ROWS,
     }
     return render(request, "finsovet/dashboard.html", ctx)
 
@@ -399,3 +405,194 @@ def debt_delete(request, pk):
     if _is_xhr(request):
         return JsonResponse({"ok": True})
     return redirect(_back(request, reverse("finsovet:debts")))
+
+
+# --------------------------------------------------------------------------- #
+#  Панель «Финансы»: «План выплат» и «Ожидаемые средства».
+#  Ячейки правятся как в Excel — каждая сохраняется отдельным запросом.
+# --------------------------------------------------------------------------- #
+FIN_VISIBLE_ROWS = 6  # сколько последних строк видно сразу, остальные — «Показать все»
+
+
+def _payments_qs():
+    return Payment.objects.filter(is_active=True).annotate(paid_sum=Sum("records__amount"))
+
+
+def _parse_money(raw: str):
+    """«3 800 000,00» или «1735429» → Decimal. Пусто → 0, не число → None."""
+    cleaned = re.sub(r"[\s\u00a0]", "", raw or "").replace(",", ".").replace("−", "-")
+    if not cleaned:
+        return Decimal("0")
+    try:
+        value = Decimal(cleaned).quantize(Decimal("0.01"))
+    except InvalidOperation:
+        return None
+    return value
+
+
+def _payment_state(payment):
+    payment = _payments_qs().get(pk=payment.pk)
+    return {
+        "ok": True,
+        "id": payment.pk,
+        "total": format_money(payment.total),
+        "paid": format_money(payment.paid),
+        "remaining": format_money(payment.remaining),
+        "done": payment.is_done,
+    }
+
+
+def _next_order(model):
+    top = model.objects.order_by("-order").values_list("order", flat=True).first() or 0
+    return top + 1
+
+
+@finsovet_required
+@require_POST
+def payment_add(request):
+    payment = Payment.objects.create(order=_next_order(Payment), created_by=request.user)
+    payment = _payments_qs().get(pk=payment.pk)
+    number = Payment.objects.filter(is_active=True).count()
+    html = render_to_string("finsovet/_payment_row.html", {"p": payment, "number": number}, request=request)
+    return JsonResponse({"ok": True, "id": payment.pk, "html": html})
+
+
+PAYMENT_TEXT_FIELDS = {"due", "name", "extra", "notes"}
+
+
+@finsovet_required
+@require_POST
+def payment_update(request, pk):
+    payment = get_object_or_404(Payment, pk=pk, is_active=True)
+    field = request.POST.get("field", "")
+    value = request.POST.get("value", "").strip()
+
+    if field in PAYMENT_TEXT_FIELDS:
+        max_len = Payment._meta.get_field(field).max_length
+        setattr(payment, field, value[:max_len])
+        payment.save(update_fields=[field, "updated_at"])
+        return JsonResponse(_payment_state(payment))
+
+    amount = _parse_money(value)
+    if amount is None:
+        return JsonResponse({"ok": False, "error": "Введите число, например 1 500 000,00"}, status=400)
+
+    if field == "total":
+        payment.total = amount
+        payment.save(update_fields=["total", "updated_at"])
+        return JsonResponse(_payment_state(payment))
+
+    if field == "paid":
+        # «Оплачено» можно вписать прямо в ячейку, как в Excel: разница становится
+        # выплатой сегодняшним числом — история не теряется.
+        delta = amount - Decimal(payment.paid)
+        if delta:
+            PaymentRecord.objects.create(
+                payment=payment, amount=delta, date=timezone.localdate(),
+                note="Изменено в таблице", created_by=request.user,
+            )
+            payment.save(update_fields=["updated_at"])
+        return JsonResponse(_payment_state(payment))
+
+    return HttpResponseBadRequest("bad field")
+
+
+@finsovet_required
+@require_POST
+def payment_delete(request, pk):
+    """Убрать строку из плана. Не стирается — история выплат остаётся в базе (админка)."""
+    payment = get_object_or_404(Payment, pk=pk)
+    payment.is_active = False
+    payment.save(update_fields=["is_active", "updated_at"])
+    return JsonResponse({"ok": True})
+
+
+@finsovet_required
+def payment_history(request, pk):
+    payment = get_object_or_404(Payment, pk=pk)
+    records = payment.records.select_related("created_by")
+    return JsonResponse({
+        **_payment_state(payment),
+        "name": payment.name or "Без названия",
+        "records": [
+            {
+                "id": r.pk,
+                "date": r.date.strftime("%d.%m.%Y"),
+                "amount": format_money(r.amount),
+                "note": r.note,
+                "author": r.created_by.display_name if r.created_by else "—",
+                "delete_url": reverse("finsovet:payment_record_delete", args=[r.pk]),
+            }
+            for r in records
+        ],
+    })
+
+
+@finsovet_required
+@require_POST
+def payment_record_add(request, pk):
+    """«Добавить выплату»: сумма + дата (по умолчанию сегодня) + комментарий."""
+    payment = get_object_or_404(Payment, pk=pk, is_active=True)
+    amount = _parse_money(request.POST.get("amount", ""))
+    if not amount:
+        return JsonResponse({"ok": False, "error": "Укажите сумму выплаты"}, status=400)
+    raw_date = request.POST.get("date", "").strip()
+    try:
+        date = timezone.datetime.strptime(raw_date, "%Y-%m-%d").date() if raw_date else timezone.localdate()
+    except ValueError:
+        return JsonResponse({"ok": False, "error": "Неверная дата"}, status=400)
+    PaymentRecord.objects.create(
+        payment=payment, amount=amount, date=date,
+        note=request.POST.get("note", "").strip()[:300], created_by=request.user,
+    )
+    payment.save(update_fields=["updated_at"])
+    return JsonResponse(_payment_state(payment))
+
+
+@finsovet_required
+@require_POST
+def payment_record_delete(request, pk):
+    """«Удалить выплату» — одна запись из истории, сумма «Оплачено» пересчитается."""
+    record = get_object_or_404(PaymentRecord, pk=pk)
+    payment = record.payment
+    record.delete()
+    payment.save(update_fields=["updated_at"])
+    return JsonResponse(_payment_state(payment))
+
+
+@finsovet_required
+@require_POST
+def fund_add(request):
+    fund = ExpectedFund.objects.create(order=_next_order(ExpectedFund), created_by=request.user)
+    number = ExpectedFund.objects.filter(is_active=True).count()
+    html = render_to_string("finsovet/_fund_row.html", {"f": fund, "number": number}, request=request)
+    return JsonResponse({"ok": True, "id": fund.pk, "html": html})
+
+
+@finsovet_required
+@require_POST
+def fund_update(request, pk):
+    fund = get_object_or_404(ExpectedFund, pk=pk, is_active=True)
+    field = request.POST.get("field", "")
+    value = request.POST.get("value", "").strip()
+    if field in {"source", "due", "notes"}:
+        setattr(fund, field, value[:ExpectedFund._meta.get_field(field).max_length])
+        fund.save(update_fields=[field, "updated_at"])
+        return JsonResponse({"ok": True})
+    if field == "amount":
+        amount = _parse_money(value)
+        if amount is None:
+            return JsonResponse({"ok": False, "error": "Введите число, например 1 500 000,00"}, status=400)
+        fund.amount = amount
+        fund.save(update_fields=["amount", "updated_at"])
+        return JsonResponse({"ok": True, "amount": format_money(fund.amount)})
+    return HttpResponseBadRequest("bad field")
+
+
+@finsovet_required
+@require_POST
+def fund_delete(request, pk):
+    fund = get_object_or_404(ExpectedFund, pk=pk)
+    fund.is_active = False
+    fund.save(update_fields=["is_active", "updated_at"])
+    return JsonResponse({"ok": True})

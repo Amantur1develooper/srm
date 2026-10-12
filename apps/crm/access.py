@@ -22,6 +22,12 @@ def tasks_for(user):
     return qs.filter(manager=user)
 
 
+def own_tasks_for(user):
+    """Только свои задачи — для раздела «Задачи», счётчиков и «Мои задачи» на главной.
+    Чужие задачи админ/руководитель по-прежнему открывают из карточки клиента."""
+    return tasks_for(user).filter(manager=user)
+
+
 def messages_for(user):
     from .models import Message
 

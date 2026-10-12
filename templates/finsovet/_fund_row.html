@@ -1,0 +1,13 @@
+{% load finsovet_tags %}{% comment %}Строка «ожидаемых средств» — правится как в Excel.{% endcomment %}
+<tr class="xl-row" data-id="{{ f.id }}"
+    data-update-url="{% url 'finsovet:fund_update' f.id %}"
+    data-delete-url="{% url 'finsovet:fund_delete' f.id %}">
+  <td class="xl-num">{{ number }}</td>
+  <td><input class="xl-cell" data-field="source" value="{{ f.source }}" placeholder="источник" autocomplete="off"></td>
+  <td><input class="xl-cell xl-money" data-field="amount" data-out="amount" value="{{ f.amount|money }}" inputmode="decimal" autocomplete="off"></td>
+  <td><input class="xl-cell" data-field="due" value="{{ f.due }}" placeholder="срок" autocomplete="off"></td>
+  <td><input class="xl-cell" data-field="notes" value="{{ f.notes }}" autocomplete="off"></td>
+  <td class="xl-act">
+    <button type="button" class="xl-btn xl-del" data-fin-delete title="Удалить строку" aria-label="Удалить строку">🗑</button>
+  </td>
+</tr>

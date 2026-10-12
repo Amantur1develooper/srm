@@ -28,6 +28,7 @@ from .access import (
     ensure_client_access,
     ensure_settings,
     messages_for,
+    own_tasks_for,
     tasks_for,
 )
 from .forms import (
@@ -83,7 +84,7 @@ def dashboard(request):
     """Главное: акцент на новых лидах и текущей работе — не на всей базе."""
     user = request.user
     clients = clients_for(user)
-    tasks = tasks_for(user)
+    tasks = own_tasks_for(user)
     today = timezone.localdate()
 
     dash_stages = list(
@@ -688,14 +689,11 @@ def kanban_move(request):
 @login_required
 def task_list(request):
     user = request.user
-    qs = tasks_for(user)
+    qs = own_tasks_for(user)  # в «Задачах» каждый видит только свои
     today = timezone.localdate()
     tab = request.GET.get("tab", "today")
 
     stage_slug = request.GET.get("stage", "")
-    manager_id = request.GET.get("manager", "")
-    if manager_id:
-        qs = qs.filter(manager_id=manager_id)
     if stage_slug:
         qs = qs.filter(client__stage__slug=stage_slug)
 
@@ -713,9 +711,7 @@ def task_list(request):
     else:
         view_qs = qs
 
-    base = tasks_for(user)
-    if manager_id:
-        base = base.filter(manager_id=manager_id)
+    base = own_tasks_for(user)
     if stage_slug:
         base = base.filter(client__stage__slug=stage_slug)
     counts = {
@@ -728,14 +724,11 @@ def task_list(request):
     extra = []
     if stage_slug:
         extra.append(f"stage={quote(stage_slug)}")
-    if manager_id:
-        extra.append(f"manager={quote(manager_id)}")
 
     ctx = {
         "tasks": view_qs.select_related("client", "manager", "client__stage"),
         "tab": tab,
         "counts": counts,
-        "managers": User.objects.filter(is_active=True, role="manager").order_by("first_name"),
         "stages": Stage.objects.filter(is_active=True),
         "current": request.GET,
         "filter_query": "&".join(extra),

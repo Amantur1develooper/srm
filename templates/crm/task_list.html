@@ -29,10 +29,6 @@
         <option value="">Все стадии</option>
         {% for s in stages %}<option value="{{ s.slug }}" {% if current.stage == s.slug %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
       </select>
-      <select class="field-input field-select" name="manager" onchange="this.form.submit()">
-        <option value="">Все менеджеры</option>
-        {% for m in managers %}<option value="{{ m.id }}" {% if current.manager == m.id|stringformat:'s' %}selected{% endif %}>{{ m.display_name }}</option>{% endfor %}
-      </select>
       <noscript><button class="btn sm">Применить</button></noscript>
       {% if has_filters %}<a href="?tab={{ tab }}" class="btn ghost sm">Сбросить</a>{% endif %}
     </div>

@@ -1,0 +1,22 @@
+{% load finsovet_tags %}{% comment %}Строка «плана выплат». Ячейки — поля ввода, правятся как в Excel
+(Enter/↑/↓ — соседняя строка, Tab — следующая ячейка). «Остаток» считается сам.
+Полностью оплаченные строки зачёркнуты.{% endcomment %}
+<tr class="xl-row{% if p.is_done %} is-done{% endif %}" data-id="{{ p.id }}"
+    data-update-url="{% url 'finsovet:payment_update' p.id %}"
+    data-history-url="{% url 'finsovet:payment_history' p.id %}"
+    data-record-url="{% url 'finsovet:payment_record_add' p.id %}"
+    data-delete-url="{% url 'finsovet:payment_delete' p.id %}">
+  <td class="xl-num">{{ number }}</td>
+  <td><input class="xl-cell" data-field="due" value="{{ p.due }}" placeholder="срок" autocomplete="off"></td>
+  <td><input class="xl-cell" data-field="name" value="{{ p.name }}" placeholder="наименование" autocomplete="off"></td>
+  <td class="xl-calc" data-out="remaining">{{ p.remaining|money }}</td>
+  <td><input class="xl-cell xl-money" data-field="total" data-out="total" value="{{ p.total|money }}" inputmode="decimal" autocomplete="off"></td>
+  <td><input class="xl-cell xl-money" data-field="paid" data-out="paid" value="{{ p.paid|money }}" inputmode="decimal" autocomplete="off"
+             title="Можно вписать сумму — разница сохранится выплатой сегодняшним числом"></td>
+  <td><input class="xl-cell" data-field="extra" value="{{ p.extra }}" autocomplete="off"></td>
+  <td><input class="xl-cell" data-field="notes" value="{{ p.notes }}" autocomplete="off"></td>
+  <td class="xl-act">
+    <button type="button" class="xl-btn" data-fin-history title="История и «добавить выплату»" aria-label="История выплат">🕘</button>
+    <button type="button" class="xl-btn xl-del" data-fin-delete title="Удалить строку" aria-label="Удалить строку">🗑</button>
+  </td>
+</tr>

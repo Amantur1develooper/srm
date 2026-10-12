@@ -5,7 +5,7 @@ from pathlib import Path
 from django.conf import settings
 from django.utils import timezone
 
-from .access import tasks_for
+from .access import own_tasks_for
 from .models import Message, Notification, Task
 
 
@@ -25,7 +25,7 @@ def crm_globals(request):
         return {"asset_version": _asset_version()}
 
     today = timezone.localdate()
-    open_tasks = tasks_for(user).filter(status__in=[Task.Status.NEW, Task.Status.IN_PROGRESS])
+    open_tasks = own_tasks_for(user).filter(status__in=[Task.Status.NEW, Task.Status.IN_PROGRESS])
     overdue = sum(1 for t in open_tasks.filter(due_date__lt=today))
     today_cnt = open_tasks.filter(due_date=today).count()
 

@@ -24,5 +24,15 @@ urlpatterns = [
     path("debts/<int:pk>/update/", views.debt_update, name="debt_update"),
     path("debts/<int:pk>/delete/", views.debt_delete, name="debt_delete"),
 
+    path("payments/add/", views.payment_add, name="payment_add"),
+    path("payments/<int:pk>/update/", views.payment_update, name="payment_update"),
+    path("payments/<int:pk>/delete/", views.payment_delete, name="payment_delete"),
+    path("payments/<int:pk>/history/", views.payment_history, name="payment_history"),
+    path("payments/<int:pk>/records/add/", views.payment_record_add, name="payment_record_add"),
+    path("payments/records/<int:pk>/delete/", views.payment_record_delete, name="payment_record_delete"),
+    path("funds/add/", views.fund_add, name="fund_add"),
+    path("funds/<int:pk>/update/", views.fund_update, name="fund_update"),
+    path("funds/<int:pk>/delete/", views.fund_delete, name="fund_delete"),
+
     path("structure/", views.structure, name="structure"),
 ]
