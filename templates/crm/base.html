@@ -30,7 +30,8 @@
 
       {% if user.has_finsovet_access %}
       <div class="nav-sep">Финсовет</div>
-      <a href="{% url 'finsovet:dashboard' %}" class="{% if '/finsovet/' in request.path and '/finsovet/tasks' not in request.path %}active{% endif %}"><span class="ico" style="background:#5856d633">🏛️</span> Финсовет</a>
+      <a href="{% url 'finsovet:dashboard' %}" class="{% if '/finsovet/' in request.path and '/finsovet/tasks' not in request.path and '/finsovet/finance' not in request.path %}active{% endif %}"><span class="ico" style="background:#5856d633">🏛️</span> Финсовет</a>
+      <a href="{% url 'finsovet:finance' %}" class="{% if '/finsovet/finance' in request.path %}active{% endif %}"><span class="ico" style="background:#34c75933">💰</span> Финансы</a>
       <a href="{% url 'finsovet:task_list' %}" class="{% if '/finsovet/tasks' in request.path %}active{% endif %}"><span class="ico" style="background:#5856d633">✅</span> Задачи Финсовета</a>
       {% endif %}
 

@@ -170,16 +170,37 @@ class FinancePanelTests(TestCase):
         for label in ("Финансы", "План выплат", "Ожидаемые средства", "Управление"):
             self.assertContains(resp, label)
 
+    def test_finance_page_totals_and_nav(self):
+        a = self._add_payment()
+        b = self._add_payment()
+        self.client.post(f"/finsovet/payments/{a.pk}/update/", {"field": "total", "value": "1000000"})
+        self.client.post(f"/finsovet/payments/{b.pk}/update/", {"field": "total", "value": "139000"})
+        self.client.post(f"/finsovet/payments/{b.pk}/records/add/", {"amount": "39000"})
+        resp = self.client.get("/finsovet/finance/")
+        self.assertContains(resp, "Ожидаемые средства")
+        self.assertEqual(resp.context["pay_sum"]["total"], 1139000)
+        self.assertEqual(resp.context["pay_sum"]["remaining"], 1100000)
+        self.assertContains(resp, "1 139 000")
+        self.assertContains(resp, 'href="/finsovet/finance/"')  # пункт в меню слева
+
+    def test_add_row_on_top_or_end(self):
+        first = self._add_payment()
+        top = self._add_payment()  # «+ строка» — сверху, под «Итого»
+        end = Payment.objects.get(pk=self.client.post("/finsovet/payments/add/", {"position": "end"}).json()["id"])
+        self.assertEqual(list(Payment.objects.values_list("pk", flat=True)), [top.pk, first.pk, end.pk])
+
     def test_excel_like_edit_and_remaining(self):
         p = self._add_payment()
         url = f"/finsovet/payments/{p.pk}/update/"
         self.client.post(url, {"field": "name", "value": "Строй партнер и Ко Тимур"})
-        d = self.client.post(url, {"field": "total", "value": "1 845 000,00"}).json()
-        self.assertEqual(d["remaining"], "1 845 000,00")
+        d = self.client.post(url, {"field": "total", "value": "1 845 000"}).json()
+        self.assertEqual(d["remaining"], "1 845 000")
+        self.assertEqual(self.client.post(url, {"field": "total", "value": "1 845 000,5"}).json()["total"], "1 845 000,50")
+        self.client.post(url, {"field": "total", "value": "1845000"})
         # «Оплачено» вписано прямо в ячейку → разница становится выплатой с датой
         d = self.client.post(url, {"field": "paid", "value": "500 000"}).json()
-        self.assertEqual(d["paid"], "500 000,00")
-        self.assertEqual(d["remaining"], "1 345 000,00")
+        self.assertEqual(d["paid"], "500 000")
+        self.assertEqual(d["remaining"], "1 345 000")
         self.assertFalse(d["done"])
         self.assertEqual(p.records.count(), 1)
         bad = self.client.post(url, {"field": "total", "value": "много"})
@@ -194,7 +215,7 @@ class FinancePanelTests(TestCase):
         self.assertEqual(hist["records"][0]["date"], "01.10.2026")
         d = self.client.post(hist["records"][0]["delete_url"]).json()
         self.assertFalse(d["done"])
-        self.assertEqual(d["remaining"], "139 000,00")
+        self.assertEqual(d["remaining"], "139 000")
 
     def test_delete_row_hides_it_but_keeps_history(self):
         p = self._add_payment()
@@ -208,7 +229,7 @@ class FinancePanelTests(TestCase):
         resp = self.client.post("/finsovet/funds/add/").json()
         url = f"/finsovet/funds/{resp['id']}/update/"
         self.client.post(url, {"field": "source", "value": "Продажа квартир"})
-        self.assertEqual(self.client.post(url, {"field": "amount", "value": "2500000"}).json()["amount"], "2 500 000,00")
+        self.assertEqual(self.client.post(url, {"field": "amount", "value": "2500000"}).json()["amount"], "2 500 000")
         f = ExpectedFund.objects.get(pk=resp["id"])
         self.assertEqual(f.source, "Продажа квартир")
         self.client.post(f"/finsovet/funds/{f.pk}/delete/")

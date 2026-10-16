@@ -76,9 +76,7 @@ def dashboard(request):
         "total": Question.objects.filter(is_active=True).count(),
         "people_panel": people_panel,
         "debt_notes": DebtNote.objects.select_related("updated_by", "created_by"),
-        "payments": _payments_qs(),
-        "funds": ExpectedFund.objects.filter(is_active=True),
-        "fin_visible": FIN_VISIBLE_ROWS,
+        **_finance_ctx(),
     }
     return render(request, "finsovet/dashboard.html", ctx)
 
@@ -411,9 +409,6 @@ def debt_delete(request, pk):
 #  Панель «Финансы»: «План выплат» и «Ожидаемые средства».
 #  Ячейки правятся как в Excel — каждая сохраняется отдельным запросом.
 # --------------------------------------------------------------------------- #
-FIN_VISIBLE_ROWS = 6  # сколько последних строк видно сразу, остальные — «Показать все»
-
-
 def _payments_qs():
     return Payment.objects.filter(is_active=True).annotate(paid_sum=Sum("records__amount"))
 
@@ -442,18 +437,41 @@ def _payment_state(payment):
     }
 
 
-def _next_order(model):
-    top = model.objects.order_by("-order").values_list("order", flat=True).first() or 0
-    return top + 1
+def _finance_ctx():
+    """Строки и итоги обеих таблиц — для страницы «Финансы» и панели на главной Финсовета."""
+    payments = list(_payments_qs())
+    funds = list(ExpectedFund.objects.filter(is_active=True))
+    total = sum((p.total for p in payments), Decimal("0"))
+    paid = sum((Decimal(p.paid) for p in payments), Decimal("0"))
+    return {
+        "payments": payments,
+        "funds": funds,
+        "pay_sum": {"total": total, "paid": paid, "remaining": total - paid},
+        "fund_sum": sum((f.amount for f in funds), Decimal("0")),
+    }
+
+
+def _new_order(model, position):
+    """«+ строка» добавляет сверху (под строкой «Итого»); вставка из Excel — в конец."""
+    if position == "end":
+        top = model.objects.order_by("-order").values_list("order", flat=True).first() or 0
+        return top + 1
+    low = model.objects.order_by("order").values_list("order", flat=True).first() or 0
+    return low - 1
+
+
+@finsovet_required
+def finance_page(request):
+    """Отдельная страница «Финансы»: «План выплат» и «Ожидаемые средства» целиком, 60/40."""
+    return render(request, "finsovet/finance.html", _finance_ctx())
 
 
 @finsovet_required
 @require_POST
 def payment_add(request):
-    payment = Payment.objects.create(order=_next_order(Payment), created_by=request.user)
+    payment = Payment.objects.create(order=_new_order(Payment, request.POST.get("position")), created_by=request.user)
     payment = _payments_qs().get(pk=payment.pk)
-    number = Payment.objects.filter(is_active=True).count()
-    html = render_to_string("finsovet/_payment_row.html", {"p": payment, "number": number}, request=request)
+    html = render_to_string("finsovet/_payment_row.html", {"p": payment, "number": ""}, request=request)
     return JsonResponse({"ok": True, "id": payment.pk, "html": html})
 
 
@@ -475,7 +493,7 @@ def payment_update(request, pk):
 
     amount = _parse_money(value)
     if amount is None:
-        return JsonResponse({"ok": False, "error": "Введите число, например 1 500 000,00"}, status=400)
+        return JsonResponse({"ok": False, "error": "Введите число, например 1 500 000"}, status=400)
 
     if field == "total":
         payment.total = amount
@@ -563,9 +581,8 @@ def payment_record_delete(request, pk):
 @finsovet_required
 @require_POST
 def fund_add(request):
-    fund = ExpectedFund.objects.create(order=_next_order(ExpectedFund), created_by=request.user)
-    number = ExpectedFund.objects.filter(is_active=True).count()
-    html = render_to_string("finsovet/_fund_row.html", {"f": fund, "number": number}, request=request)
+    fund = ExpectedFund.objects.create(order=_new_order(ExpectedFund, request.POST.get("position")), created_by=request.user)
+    html = render_to_string("finsovet/_fund_row.html", {"f": fund, "number": ""}, request=request)
     return JsonResponse({"ok": True, "id": fund.pk, "html": html})
 
 
@@ -582,7 +599,7 @@ def fund_update(request, pk):
     if field == "amount":
         amount = _parse_money(value)
         if amount is None:
-            return JsonResponse({"ok": False, "error": "Введите число, например 1 500 000,00"}, status=400)
+            return JsonResponse({"ok": False, "error": "Введите число, например 1 500 000"}, status=400)
         fund.amount = amount
         fund.save(update_fields=["amount", "updated_at"])
         return JsonResponse({"ok": True, "amount": format_money(fund.amount)})

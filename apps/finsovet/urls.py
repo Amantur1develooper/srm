@@ -24,6 +24,7 @@ urlpatterns = [
     path("debts/<int:pk>/update/", views.debt_update, name="debt_update"),
     path("debts/<int:pk>/delete/", views.debt_delete, name="debt_delete"),
 
+    path("finance/", views.finance_page, name="finance"),
     path("payments/add/", views.payment_add, name="payment_add"),
     path("payments/<int:pk>/update/", views.payment_update, name="payment_update"),
     path("payments/<int:pk>/delete/", views.payment_delete, name="payment_delete"),

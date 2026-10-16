@@ -1,0 +1,90 @@
+{% load finsovet_tags %}{% comment %}
+«План выплат» и «Ожидаемые средства» — одни и те же таблицы на странице «Финансы»
+(grid_class="fin-grid--page", все строки) и на главной Финсовета (compact — окно на 6–7 строк
+со скроллом). Сверху: шапка → «Итого» → «+ строка». Логика — static/crm/finance.js.
+{% endcomment %}
+<div class="fin-grid {{ grid_class }}{% if compact %} fin-compact{% endif %}" data-fin-root>
+  <div class="fin-box">
+    <div class="fin-box-h"><span>План выплат</span><small class="muted">{{ payments|length }} строк</small></div>
+    <div class="xl-wrap">
+      <table class="xl-table xl-payments" data-fin-table>
+        <colgroup>
+          <col style="width:30px"><col style="width:96px"><col><col style="width:112px"><col style="width:112px">
+          <col style="width:112px"><col style="width:96px"><col style="width:120px"><col style="width:56px">
+        </colgroup>
+        <thead>
+          <tr><th>№</th><th>Дата / срок</th><th>Наименование</th><th class="r">Остаток</th><th class="r">Общ. сумма</th>
+              <th class="r">Оплачено</th><th>Дополнительно</th><th>Примечание</th><th></th></tr>
+          <tr class="xl-total">
+            <td></td><td></td><td>Итого</td>
+            <td class="r" data-sum="remaining">{{ pay_sum.remaining|money }}</td>
+            <td class="r" data-sum="total">{{ pay_sum.total|money }}</td>
+            <td class="r" data-sum="paid">{{ pay_sum.paid|money }}</td>
+            <td></td><td></td><td></td>
+          </tr>
+          <tr class="xl-addrow"><td colspan="9">
+            <button type="button" class="fs-mini-add" data-fin-add="{% url 'finsovet:payment_add' %}">+ строка</button>
+          </td></tr>
+        </thead>
+        <tbody>
+          {% for p in payments %}{% include "finsovet/_payment_row.html" with number=forloop.counter %}{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="fin-box">
+    <div class="fin-box-h"><span>Ожидаемые средства</span><small class="muted">{{ funds|length }} строк</small></div>
+    <div class="xl-wrap">
+      <table class="xl-table xl-funds" data-fin-table>
+        <colgroup>
+          <col style="width:30px"><col><col style="width:112px"><col style="width:90px"><col style="width:120px"><col style="width:34px">
+        </colgroup>
+        <thead>
+          <tr><th>№</th><th>Источник</th><th class="r">Сумма</th><th>Срок</th><th>Примечание</th><th></th></tr>
+          <tr class="xl-total">
+            <td></td><td>Итого</td>
+            <td class="r" data-sum="amount">{{ fund_sum|money }}</td>
+            <td></td><td></td><td></td>
+          </tr>
+          <tr class="xl-addrow"><td colspan="6">
+            <button type="button" class="fs-mini-add" data-fin-add="{% url 'finsovet:fund_add' %}">+ строка</button>
+          </td></tr>
+        </thead>
+        <tbody>
+          {% for f in funds %}{% include "finsovet/_fund_row.html" with number=forloop.counter %}{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% if not compact %}<p class="xl-hint muted">
+  Как в Excel: стрелки — по ячейкам, <kbd>Shift</kbd>+стрелки или <kbd>Shift</kbd>+клик — выделить диапазон,
+  <kbd>⌘/Ctrl</kbd>+<kbd>C</kbd> / <kbd>V</kbd> — копировать и вставить (в т.ч. из Excel), <kbd>Delete</kbd> — очистить,
+  <kbd>Enter</kbd> — вниз, двойной клик или <kbd>F2</kbd> — править текст в ячейке.
+</p>{% endif %}
+
+{# ── История выплат по одной строке + «добавить выплату» / «удалить выплату» ── #}
+<div class="modal-backdrop" id="finHistoryModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-h">
+      <b data-fh-name>История выплат</b>
+      <button type="button" class="btn ghost sm" data-fh-close aria-label="Закрыть">Готово</button>
+    </div>
+    <div class="modal-b stack">
+      <div class="fh-sums">
+        <div><small>Общая сумма</small><b data-fh-total></b></div>
+        <div><small>Оплачено</small><b data-fh-paid></b></div>
+        <div><small>Остаток</small><b data-fh-remaining></b></div>
+      </div>
+      <form class="fh-form" id="finRecordForm">
+        <input class="field-input" name="amount" placeholder="Сумма выплаты" inputmode="decimal" autocomplete="off" required>
+        <input class="field-input" type="date" name="date">
+        <input class="field-input" name="note" placeholder="Комментарий" autocomplete="off">
+        <button class="btn sm" type="submit">Добавить выплату</button>
+      </form>
+      <div class="errorlist" data-fh-error hidden></div>
+      <div class="fh-list" data-fh-list></div>
+    </div>
+  </div>
+</div>

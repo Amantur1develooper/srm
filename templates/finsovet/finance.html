@@ -1,0 +1,13 @@
+{% extends "crm/base.html" %}
+{% load static %}
+{% block title %}Финансы — Финсовет{% endblock %}
+{% block body_class %}fs-notopbar{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><a href="{% url 'finsovet:dashboard' %}" class="muted">← Финсовет</a><h1 style="margin-top:4px">Финансы</h1></div>
+</div>
+{% include "finsovet/_finance_panels.html" with grid_class="fin-grid--page" %}
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'crm/finance.js' %}?v={{ asset_version }}"></script>
+{% endblock %}

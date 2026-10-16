@@ -949,18 +949,35 @@ a.fs-panel-row-head:hover .fs-panel-name{color:var(--blue)}
 }
 .fin-panel{margin-bottom:var(--sp-5)}
 .fin-grid{display:grid;grid-template-columns:minmax(0,65fr) minmax(0,35fr);gap:var(--sp-4);align-items:start}
-@media(max-width:1100px){.fin-grid{grid-template-columns:minmax(0,1fr)}}
+.fin-grid--page{grid-template-columns:minmax(0,60fr) minmax(0,40fr)}  /* отдельная страница «Финансы» */
+@media(max-width:1100px){.fin-grid,.fin-grid--page{grid-template-columns:minmax(0,1fr)}}
+.fs-section-h-row{display:flex;align-items:center;justify-content:space-between}
 .fin-box{background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:8px 8px 6px;min-width:0}
 .fin-box-h{
   display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 6px 8px;
   font-size:13.5px;font-weight:700;
 }
-.fin-more-btn{background:none;border:0;font:inherit;font-size:12px;font-weight:600;color:var(--blue);cursor:pointer;padding:0}
-.fin-more-btn:hover{opacity:.7}
-.fin-add{padding:6px 6px 2px}
+.fin-box-h small{font-weight:500;font-size:11.5px}
 
 /* таблица «как в Excel»: фиксированные колонки, сетка, ячейка = поле ввода */
-.xl-wrap{overflow-x:auto}
+/* шапка + «Итого» + «+ строка» закреплены, строки прокручиваются под ними */
+.xl-wrap{overflow:auto;max-height:calc(100vh - 230px)}
+.fin-compact .xl-wrap{max-height:318px}  /* на главной Финсовета — окно на 6–7 строк */
+.xl-table thead{position:sticky;top:0;z-index:3}
+.xl-total td{
+  background:var(--surface);font-weight:700;padding:0 7px;border:.5px solid var(--sep);
+  white-space:nowrap;font-variant-numeric:tabular-nums;box-shadow:inset 0 -1px 0 var(--sep);
+}
+.xl-total td.r{text-align:right}
+.xl-addrow td{background:var(--surface);height:28px;padding:0 4px;border:.5px solid var(--sep)}
+.xl-addrow .fs-mini-add{padding:0 4px}
+.xl-sel{background:rgba(10,132,255,.13)!important}
+.xl-sel .xl-cell{background:transparent}
+.xl-copied{outline:1.5px dashed var(--blue);outline-offset:-2px}
+.xl-hint{font-size:11.5px;margin:6px 2px 0}
+.xl-hint kbd{
+  font:inherit;font-size:10.5px;background:var(--fill);border-radius:4px;padding:0 4px;border:.5px solid var(--sep);
+}
 .xl-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px}
 .xl-payments{min-width:820px}
 .xl-funds{min-width:420px}
