@@ -94,6 +94,8 @@ def render_template(body: str, client) -> str:
 def log_history(client, kind, text, user=None):
     from .models import ClientHistory
 
+    if client is None:  # задача без клиента — истории клиента нет
+        return None
     return ClientHistory.objects.create(client=client, kind=kind, text=text, user=user)
 
 

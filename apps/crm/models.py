@@ -255,7 +255,8 @@ class Comment(models.Model):
 
 
 class Task(models.Model):
-    """Задача менеджера, всегда связана с клиентом."""
+    """Задача менеджера. Обычно связана с клиентом, но может быть и без него
+    (внутренние дела: «подготовить отчёт», «съездить в банк»)."""
 
     class Status(models.TextChoices):
         NEW = "new", "Новая"
@@ -264,7 +265,9 @@ class Task(models.Model):
         OVERDUE = "overdue", "Просрочена"
 
     title = models.CharField("Название", max_length=255)
-    client = models.ForeignKey(Client, verbose_name="Клиент", on_delete=models.CASCADE, related_name="tasks")
+    client = models.ForeignKey(
+        Client, verbose_name="Клиент", on_delete=models.CASCADE, related_name="tasks", null=True, blank=True,
+    )
     manager = models.ForeignKey(
         settings.AUTH_USER_MODEL, verbose_name="Менеджер", on_delete=models.SET_NULL, null=True, related_name="tasks"
     )

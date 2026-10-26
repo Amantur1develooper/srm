@@ -347,7 +347,11 @@ def client_create(request):
             client.manager = request.user
         client.created_by = request.user
         client.first_contact_date = timezone.localdate()  # дата фиксации — автоматически
-        client.stage = Stage.objects.filter(slug="new", is_active=True).first() or Stage.objects.order_by("order").first()
+        client.stage = (
+            form.cleaned_data.get("stage")
+            or Stage.objects.filter(slug="new", is_active=True).first()
+            or Stage.objects.order_by("order").first()
+        )
         client.save()
         log_history(client, ClientHistory.Kind.CREATED, "Клиент создан", request.user)
         if client.manager and client.manager_id != request.user.id:
@@ -360,6 +364,13 @@ def client_create(request):
                 due_date=form.cleaned_data.get("task_date"), created_by=request.user,
             )
             log_history(client, ClientHistory.Kind.TASK, f"Задача: {t.title}", request.user)
+        # как при переходе в «Горячий»: без своей задачи — автозадача «Связаться с клиентом»
+        if client.stage and client.stage.slug == "hot" and not client.has_open_task:
+            Task.objects.create(
+                title="Связаться с клиентом", client=client, manager=client.manager or request.user,
+                due_date=timezone.localdate(), created_by=request.user,
+            )
+            log_history(client, ClientHistory.Kind.TASK, "Автозадача: Связаться с клиентом", request.user)
         flash.success(request, "Клиент создан")
         return redirect(client)
     return render(request, "crm/client_form.html", {"form": form, "title": "Новая сделка"})
@@ -747,7 +758,7 @@ def task_create(request):
         t = form.save(commit=False)
         t.created_by = request.user
         if not t.manager:
-            t.manager = t.client.manager or request.user
+            t.manager = (t.client.manager if t.client else None) or request.user
         t.save()
         log_history(t.client, ClientHistory.Kind.TASK, f"Задача: {t.title}", request.user)
         notify(t.manager, Notification.Kind.TASK_NEW, f"Новая задача: {t.title}", t.get_absolute_url())
@@ -883,6 +894,9 @@ def task_make_message(request, pk):
     """Кнопка «Создать сообщение» в задаче: открывает редактор с подставленными данными."""
     task = get_object_or_404(tasks_for(request.user), pk=pk)
     client = task.client
+    if client is None:
+        flash.error(request, "У задачи нет клиента — сообщение отправлять некому")
+        return redirect("task_detail", pk=pk)
     templates = MessageTemplate.objects.filter(is_active=True)
     tpl_id = request.GET.get("template") or request.POST.get("template")
     template = templates.filter(pk=tpl_id).first() if tpl_id else None

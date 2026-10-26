@@ -286,9 +286,9 @@ class ClientFormTests(TestCase):
     def test_requires_name_on_create(self):
         from .forms import ClientForm
 
-        form = ClientForm(data={"last_name": "", "first_name": "", "phone": "123"})
+        form = ClientForm(data={"first_name": "", "phone": "123"})
         self.assertFalse(form.is_valid())
-        self.assertIn("last_name", form.errors)
+        self.assertIn("first_name", form.errors)
 
     def test_legacy_client_editable_without_name_parts(self):
         from .forms import ClientForm
@@ -302,3 +302,68 @@ class ClientFormTests(TestCase):
     def test_compose_full_name_from_parts(self):
         c = Client.objects.create(last_name="Осмонов", first_name="Азамат", stage=self.stage)
         self.assertEqual(c.full_name, "Осмонов Азамат")
+
+
+class TaskWithoutClientTests(TestCase):
+    """Задачу можно создать без клиента (внутренние дела менеджера)."""
+
+    def setUp(self):
+        self.m1 = User.objects.create_user("m1", password="x", role="manager")
+        self.client.login(username="m1", password="x")
+
+    def test_create_and_open_task_without_client(self):
+        resp = self.client.post("/tasks/new/", {"title": "Съездить в банк", "client": "", "manager": self.m1.pk, "status": "new"})
+        task = Task.objects.get(title="Съездить в банк")
+        self.assertRedirects(resp, f"/tasks/{task.pk}/")
+        self.assertIsNone(task.client)
+        self.assertEqual(task.manager, self.m1)
+
+        detail = self.client.get(f"/tasks/{task.pk}/")
+        self.assertContains(detail, "Без клиента")
+        self.assertNotContains(detail, "Создать сообщение из задачи")
+        self.assertContains(self.client.get("/tasks/", {"tab": "no_date"}), "Съездить в банк")
+        self.assertContains(self.client.get("/"), "без клиента")
+
+        # статус меняется без записи в историю клиента; сообщение — некому
+        self.client.post(f"/tasks/{task.pk}/status/", {"status": "done"})
+        task.refresh_from_db()
+        self.assertEqual(task.status, Task.Status.DONE)
+        self.assertRedirects(self.client.get(f"/tasks/{task.pk}/message/"), f"/tasks/{task.pk}/")
+
+
+class NewDealStageTests(TestCase):
+    """В окне «Новая сделка» можно сразу выбрать стадию."""
+
+    def setUp(self):
+        self.new = Stage.objects.create(name="Новая", slug="new", order=1)
+        self.hot = Stage.objects.create(name="Горячий", slug="hot", order=2)
+        self.m1 = User.objects.create_user("m1", password="x", role="manager")
+        self.client.login(username="m1", password="x")
+
+    def test_stage_choice_on_create_only(self):
+        form = self.client.get("/clients/new/")
+        self.assertContains(form, 'name="stage"')
+        self.client.post("/clients/new/", {"first_name": "Иван", "phone": "+996700000001", "manager": self.m1.pk, "stage": self.hot.pk})
+        c = Client.objects.get(first_name="Иван")
+        self.assertEqual(c.stage, self.hot)
+        self.assertTrue(c.tasks.filter(title="Связаться с клиентом").exists())  # как при переходе в «Горячий»
+        self.assertNotContains(self.client.get(f"/clients/{c.pk}/edit/"), 'name="stage"')
+
+    def test_default_stage_is_new(self):
+        self.client.post("/clients/new/", {"first_name": "Пётр", "phone": "+996700000002"})
+        self.assertEqual(Client.objects.get(first_name="Пётр").stage, self.new)
+
+    def test_new_deal_form_defaults(self):
+        admin = User.objects.create_user("adm", password="x", role="admin")
+        m2 = User.objects.create_user("m2", password="x", role="manager")
+        self.client.login(username="m2", password="x")
+        html = self.client.get("/clients/new/").content.decode()
+        self.assertNotIn('name="last_name"', html)
+        self.assertNotIn('name="middle_name"', html)
+        self.assertIn('name="first_name"', html)
+        from .forms import ClientForm
+        self.assertEqual(ClientForm(user=m2).fields["manager"].initial, m2)
+        self.assertIsNone(ClientForm(user=admin).fields["manager"].initial)
+        # в редактировании фамилия остаётся
+        c = Client.objects.create(last_name="Осмонов", first_name="Азамат", stage=self.new, manager=m2)
+        self.assertContains(self.client.get(f"/clients/{c.pk}/edit/"), 'name="last_name"')

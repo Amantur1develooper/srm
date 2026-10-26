@@ -16,7 +16,7 @@
 <div class="stack">
   {% for t in tasks %}
   <div class="card pad row" style="justify-content:space-between">
-    <div><a href="{{ t.get_absolute_url }}"><b>{{ t.title }}</b></a> — {{ t.client.full_name }}</div>
+    <div><a href="{{ t.get_absolute_url }}"><b>{{ t.title }}</b></a> — {{ t.client.full_name|default:"без клиента" }}</div>
     <span class="badge">{{ t.get_status_display }}</span>
   </div>
   {% empty %}<div class="muted">Задачи не найдены</div>{% endfor %}

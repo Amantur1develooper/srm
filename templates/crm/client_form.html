@@ -13,13 +13,14 @@
   <div class="grid cols-2">
     <div class="stack">
       <b class="muted" style="font-size:12px;text-transform:uppercase">Основные данные</b>
-      <div class="form-row">{{ form.last_name.label_tag }}{{ form.last_name }}{{ form.last_name.errors }}</div>
+      {% if form.last_name %}<div class="form-row">{{ form.last_name.label_tag }}{{ form.last_name }}{{ form.last_name.errors }}</div>{% endif %}
       <div class="form-row">{{ form.first_name.label_tag }}{{ form.first_name }}{{ form.first_name.errors }}</div>
-      <div class="form-row">{{ form.middle_name.label_tag }}{{ form.middle_name }}</div>
+      {% if form.middle_name %}<div class="form-row">{{ form.middle_name.label_tag }}{{ form.middle_name }}</div>{% endif %}
       <div class="form-row">{{ form.phone.label_tag }}{{ form.phone }}{{ form.phone.errors }}</div>
       <div class="form-row">{{ form.manager.label_tag }}{{ form.manager }}</div>
       <div class="form-row">{{ form.source.label_tag }}{{ form.source }}</div>
       <div class="form-row">{{ form.funnel.label_tag }}{{ form.funnel }}</div>
+      {% if form.stage %}<div class="form-row">{{ form.stage.label_tag }}{{ form.stage }}{{ form.stage.errors }}</div>{% endif %}
     </div>
     <div class="stack">
       <b class="muted" style="font-size:12px;text-transform:uppercase">По сделке</b>

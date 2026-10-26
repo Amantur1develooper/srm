@@ -67,7 +67,7 @@
       <span class="sub">
         <span class="task-dot {{ t.due_tone }}"></span>
         <span class="{{ t.due_tone }}">{{ t.due_human }}{% if t.due_time %}, {{ t.due_time|time:"H:i" }}{% endif %}</span>
-        · {{ t.client.full_name }}
+        · {{ t.client.full_name|default:"без клиента" }}
       </span>
     </span>
     <span class="chev"></span>

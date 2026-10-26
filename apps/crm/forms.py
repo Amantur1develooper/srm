@@ -43,6 +43,8 @@ class ClientForm(BootstrapMixin, forms.ModelForm):
         widget=forms.TextInput(attrs={"placeholder": "Например: перезвонить"}),
     )
     task_date = forms.DateField(label="Дата", required=False, widget=forms.DateInput(attrs={"type": "date"}))
+    # Стадия выбирается только при создании сделки; дальше её двигают в карточке/канбане.
+    stage = forms.ModelChoiceField(label="Стадия", queryset=Stage.objects.none(), required=False, empty_label=None)
 
     class Meta:
         model = Client
@@ -63,7 +65,20 @@ class ClientForm(BootstrapMixin, forms.ModelForm):
         self.fields["funnel"].queryset = Funnel.objects.filter(is_active=True)
         self.fields["funnel"].required = False
         self.fields["source"].required = False
-        self.fields["last_name"].widget.attrs["autofocus"] = True
+        if self.instance.pk:
+            del self.fields["stage"]
+        else:
+            # В окне «Новая сделка» только имя — фамилию/отчество не спрашиваем.
+            del self.fields["last_name"]
+            del self.fields["middle_name"]
+            stages = Stage.objects.filter(is_active=True).order_by("order")
+            self.fields["stage"].queryset = stages
+            self.fields["stage"].initial = stages.filter(slug="new").first() or stages.first()
+            # Менеджер по умолчанию — тот, кто заполняет.
+            if user is not None and self.fields["manager"].queryset.filter(pk=user.pk).exists():
+                self.fields["manager"].initial = user
+        name_field = "last_name" if "last_name" in self.fields else "first_name"
+        self.fields[name_field].widget.attrs["autofocus"] = True
         if user is not None and not user.can_see_all_clients:
             self.fields["manager"].initial = user
             self.fields["manager"].disabled = True
@@ -78,7 +93,10 @@ class ClientForm(BootstrapMixin, forms.ModelForm):
         has_parts = cleaned.get("last_name") or cleaned.get("first_name")
         existing_full_name = self.instance.full_name if self.instance and self.instance.pk else ""
         if not has_parts and not existing_full_name:
-            self.add_error("last_name", "Укажите фамилию или имя")
+            if "last_name" in self.fields:
+                self.add_error("last_name", "Укажите фамилию или имя")
+            else:
+                self.add_error("first_name", "Укажите имя")
         return cleaned
 
 
@@ -97,6 +115,8 @@ class TaskForm(BootstrapMixin, forms.ModelForm):
         self.fields["manager"].queryset = _manager_qs()
         from .access import clients_for
 
+        self.fields["client"].required = False
+        self.fields["client"].empty_label = "— без клиента —"
         if user is not None:
             self.fields["client"].queryset = clients_for(user).order_by("full_name")
         if client is not None:

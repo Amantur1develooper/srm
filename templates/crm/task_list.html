@@ -57,7 +57,7 @@
       <span class="trow1">
         <span class="ttext kf" contenteditable data-field="title" data-task-id="{{ t.id }}">{{ t.title }}</span>
         <input type="date" class="tdate" data-field="due_date" data-task-id="{{ t.id }}" value="{{ t.due_date|date:'Y-m-d' }}">
-        <a href="{{ t.client.get_absolute_url }}" class="tclient">{{ t.client.full_name }}</a>
+        {% if t.client %}<a href="{{ t.client.get_absolute_url }}" class="tclient">{{ t.client.full_name }}</a>{% else %}<span class="tclient muted">без клиента</span>{% endif %}
       </span>
       <span class="tcmt kf" contenteditable data-inline-edit
             data-url="{% url 'task_inline_update' t.id %}" data-field="comment"

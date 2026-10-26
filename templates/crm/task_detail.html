@@ -7,7 +7,7 @@
     <h1 style="margin-top:4px">{{ task.title }}
       <span class="badge {% if task.status == 'done' %}green{% elif task.is_overdue %}red{% else %}amber{% endif %}">{{ task.get_status_display }}</span>
     </h1>
-    <small>Клиент: <a href="{{ task.client.get_absolute_url }}">{{ task.client.full_name }}</a></small>
+    <small>{% if task.client %}Клиент: <a href="{{ task.client.get_absolute_url }}">{{ task.client.full_name }}</a>{% else %}Без клиента{% endif %}</small>
   </div>
   <div class="actions">
     {% if task.is_open %}
@@ -20,6 +20,7 @@
 </div>
 
 <div class="split">
+  {% if task.client %}
   <div class="card pad">
     <h3>Создать сообщение из задачи</h3>
     <p class="muted">CRM подставит данные клиента и откроет WhatsApp с готовым текстом. Отправку менеджер подтверждает вручную.</p>
@@ -30,6 +31,7 @@
       <button class="btn wa" style="align-self:flex-start">💬 Создать сообщение</button>
     </form>
   </div>
+  {% endif %}
 
   <div class="card pad">
     <h3>Параметры задачи</h3>
