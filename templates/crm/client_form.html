@@ -28,11 +28,22 @@
       <div class="form-row">{{ form.what_has.label_tag }}{{ form.what_has }}</div>
       <div class="form-row">{{ form.comment.label_tag }}{{ form.comment }}</div>
       {% if not client %}
-      <div class="form-row full">
-        <label>Задача</label>
-        <div class="row">
-          <div style="flex:2">{{ form.task_title }}</div>
-          <div style="flex:1">{{ form.task_date }}</div>
+      <div class="nt-box" data-new-task>
+        <div class="nt-head">
+          <b>Задача</b>
+          <button type="button" class="nt-clear" data-nt-clear hidden>✕ без задачи</button>
+        </div>
+        <div class="nt-tpls">
+          {% for tpl in task_templates %}<button type="button" class="nt-pill" data-task-tpl>{{ tpl }}</button>{% endfor %}
+        </div>
+        {{ form.task_title }}
+        <div class="nt-when">
+          <span class="muted">Когда:</span>
+          <button type="button" class="nt-pill sm" data-nt-day="0">Сегодня</button>
+          <button type="button" class="nt-pill sm" data-nt-day="1">Завтра</button>
+          <button type="button" class="nt-pill sm" data-nt-day="3">Через 3 дня</button>
+          <button type="button" class="nt-pill sm" data-nt-day="7">Через неделю</button>
+          <div class="nt-dt">{{ form.task_date }}{{ form.task_time }}</div>
         </div>
       </div>
       {% endif %}
@@ -43,4 +54,48 @@
     <a href="{% if client %}{{ client.get_absolute_url }}{% else %}{% url 'client_list' %}{% endif %}" class="btn ghost">Отмена</a>
   </div>
 </form>
+<script>
+(function () {
+  var box = document.querySelector("[data-new-task]");
+  if (!box) return;
+  var title = document.getElementById("id_task_title");
+  var date = document.getElementById("id_task_date");
+  var clear = box.querySelector("[data-nt-clear]");
+
+  function iso(d) {
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function sync() {
+    // подсветка: какая готовая задача и какой день сейчас выбраны
+    box.querySelectorAll("[data-task-tpl]").forEach(function (b) { b.classList.toggle("active", b.textContent.trim() === title.value.trim()); });
+    box.querySelectorAll("[data-nt-day]").forEach(function (b) {
+      var d = new Date(); d.setDate(d.getDate() + Number(b.dataset.ntDay));
+      b.classList.toggle("active", date.value === iso(d));
+    });
+    clear.hidden = !title.value.trim();
+  }
+  box.querySelectorAll("[data-task-tpl]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      title.value = b.textContent.trim();
+      if (!date.value) date.value = iso(new Date());  // по умолчанию — сегодня
+      sync();
+    });
+  });
+  box.querySelectorAll("[data-nt-day]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var d = new Date(); d.setDate(d.getDate() + Number(b.dataset.ntDay));
+      date.value = iso(d);
+      sync();
+    });
+  });
+  clear.addEventListener("click", function () {
+    title.value = ""; date.value = "";
+    var time = document.getElementById("id_task_time"); if (time) time.value = "";
+    sync();
+  });
+  title.addEventListener("input", sync);
+  date.addEventListener("change", sync);
+  sync();
+})();
+</script>
 {% endblock %}

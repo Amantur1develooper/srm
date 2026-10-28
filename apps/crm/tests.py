@@ -349,6 +349,14 @@ class NewDealStageTests(TestCase):
         self.assertTrue(c.tasks.filter(title="Связаться с клиентом").exists())  # как при переходе в «Горячий»
         self.assertNotContains(self.client.get(f"/clients/{c.pk}/edit/"), 'name="stage"')
 
+    def test_task_with_date_and_time_on_create(self):
+        self.client.post("/clients/new/", {
+            "first_name": "Айбек", "phone": "+996700000003", "manager": self.m1.pk,
+            "task_title": "Позвонить клиенту", "task_date": "2026-11-02", "task_time": "10:30",
+        })
+        t = Client.objects.get(first_name="Айбек").tasks.get()
+        self.assertEqual((t.title, str(t.due_date), str(t.due_time)), ("Позвонить клиенту", "2026-11-02", "10:30:00"))
+
     def test_default_stage_is_new(self):
         self.client.post("/clients/new/", {"first_name": "Пётр", "phone": "+996700000002"})
         self.assertEqual(Client.objects.get(first_name="Пётр").stage, self.new)
@@ -361,6 +369,7 @@ class NewDealStageTests(TestCase):
         self.assertNotIn('name="last_name"', html)
         self.assertNotIn('name="middle_name"', html)
         self.assertIn('name="first_name"', html)
+        self.assertIn("data-task-tpl", html)  # готовые задачи в один тап
         from .forms import ClientForm
         self.assertEqual(ClientForm(user=m2).fields["manager"].initial, m2)
         self.assertIsNone(ClientForm(user=admin).fields["manager"].initial)

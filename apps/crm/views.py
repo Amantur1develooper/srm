@@ -361,7 +361,8 @@ def client_create(request):
         if title:
             t = Task.objects.create(
                 title=title, client=client, manager=client.manager or request.user,
-                due_date=form.cleaned_data.get("task_date"), created_by=request.user,
+                due_date=form.cleaned_data.get("task_date"), due_time=form.cleaned_data.get("task_time"),
+                created_by=request.user,
             )
             log_history(client, ClientHistory.Kind.TASK, f"Задача: {t.title}", request.user)
         # как при переходе в «Горячий»: без своей задачи — автозадача «Связаться с клиентом»
@@ -373,7 +374,7 @@ def client_create(request):
             log_history(client, ClientHistory.Kind.TASK, "Автозадача: Связаться с клиентом", request.user)
         flash.success(request, "Клиент создан")
         return redirect(client)
-    return render(request, "crm/client_form.html", {"form": form, "title": "Новая сделка"})
+    return render(request, "crm/client_form.html", {"form": form, "title": "Новая сделка", "task_templates": TASK_TEMPLATES})
 
 
 @login_required

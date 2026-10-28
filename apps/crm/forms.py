@@ -40,9 +40,10 @@ class ClientForm(BootstrapMixin, forms.ModelForm):
 
     task_title = forms.CharField(
         label="Задача", required=False,
-        widget=forms.TextInput(attrs={"placeholder": "Например: перезвонить"}),
+        widget=forms.TextInput(attrs={"placeholder": "Выберите выше или напишите свою"}),
     )
     task_date = forms.DateField(label="Дата", required=False, widget=forms.DateInput(attrs={"type": "date"}))
+    task_time = forms.TimeField(label="Время", required=False, widget=forms.TimeInput(attrs={"type": "time"}))
     # Стадия выбирается только при создании сделки; дальше её двигают в карточке/канбане.
     stage = forms.ModelChoiceField(label="Стадия", queryset=Stage.objects.none(), required=False, empty_label=None)
 
@@ -56,6 +57,8 @@ class ClientForm(BootstrapMixin, forms.ModelForm):
             "looking_for": forms.Textarea(attrs={"rows": 2}),
             "what_has": forms.Textarea(attrs={"rows": 2}),
             "comment": forms.Textarea(attrs={"rows": 3}),
+            # На телефоне открывается цифровая клавиатура набора номера.
+            "phone": forms.TextInput(attrs={"type": "tel", "inputmode": "tel", "autocomplete": "tel"}),
         }
         labels = {"looking_for": "Что ищет", "what_has": "Что есть", "source": "База", "funnel": "Воронка"}
 
@@ -166,6 +169,7 @@ class UserForm(BootstrapMixin, forms.ModelForm):
     class Meta:
         model = User
         fields = ["username", "first_name", "last_name", "phone", "role", "is_active", "can_access_finsovet"]
+        widgets = {"phone": forms.TextInput(attrs={"type": "tel", "inputmode": "tel", "autocomplete": "tel"})}
 
     def save(self, commit=True):
         user = super().save(commit=False)

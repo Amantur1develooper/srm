@@ -53,7 +53,7 @@
         <dt>Телефон</dt>
         <dd class="phone-dd">
           <span class="mono kf" contenteditable="true" data-inline-edit
-                data-url="{% url 'client_inline_update' client.id %}" data-field="phone"
+                data-url="{% url 'client_inline_update' client.id %}" data-field="phone" inputmode="tel"
                 data-placeholder="—">{{ client.phone }}</span>
           {% if client.phone %}<button type="button" class="copy-btn" data-copy="{{ client.phone }}" title="Скопировать номер" aria-label="Скопировать номер">⧉</button>{% endif %}
         </dd>
